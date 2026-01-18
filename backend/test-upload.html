@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CSV Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"],
+        input[type="file"] {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        input[type="text"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+            display: block;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+            display: block;
+        }
+        .loading {
+            background-color: #d1ecf1;
+            border: 2px solid #bee5eb;
+            color: #0c5460;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test CSV Upload</h1>
+        
+        <div class="form-group">
+            <label>Your Token (from login):</label>
+            <input type="text" id="token" placeholder="Paste your JWT token here">
+        </div>
+        
+        <div class="form-group">
+            <label>Select CSV File:</label>
+            <input type="file" id="csvFile" accept=".csv">
+        </div>
+        
+        <button id="uploadBtn" onclick="uploadFile()">Upload File</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function uploadFile() {
+            const token = document.getElementById('token').value.trim();
+            const fileInput = document.getElementById('csvFile');
+            const resultDiv = document.getElementById('result');
+            const uploadBtn = document.getElementById('uploadBtn');
+            
+            // Clear previous result
+            resultDiv.style.display = 'none';
+            resultDiv.textContent = '';
+            resultDiv.className = '';
+            
+            // Validation
+            if (!token) {
+                resultDiv.className = 'error';
+                resultDiv.textContent = 'ERROR: Please enter your token first!';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            if (!fileInput.files[0]) {
+                resultDiv.className = 'error';
+                resultDiv.textContent = 'ERROR: Please select a CSV file!';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            // Show loading state
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            resultDiv.className = 'loading';
+            resultDiv.textContent = 'Uploading file, please wait...';
+            resultDiv.style.display = 'block';
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/files/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'success';
+                    resultDiv.textContent = 'SUCCESS!\n\n' + JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.textContent = 'ERROR!\n\n' + JSON.stringify(data, null, 2);
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.textContent = 'ERROR: ' + error.message + '\n\nMake sure the server is running on http://localhost:5000';
+                resultDiv.style.display = 'block';
+            } finally {
+                // Reset button
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload File';
+            }
+        }
+        
+        // Allow Enter key to submit
+        document.getElementById('token').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                uploadFile();
+            }
+        });
+    </script>
+</body>
+</html>
