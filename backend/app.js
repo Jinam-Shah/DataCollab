@@ -9,7 +9,8 @@ require('dotenv').config();
 function allowedOrigins() {
   const configured = (process.env.FRONTEND_URL || '')
     .split(',')
-    .map((o) => o.trim())
+    // Browsers send the origin without a trailing slash, so "https://x.app/" would never match.
+    .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean);
   if (process.env.NODE_ENV === 'production') return configured;
   return [...configured, 'http://localhost:3000', 'http://127.0.0.1:3000'];
