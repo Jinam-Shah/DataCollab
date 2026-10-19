@@ -55,3 +55,15 @@ Each entry: the problem, the options, the choice, and why.
 - **Options:** always queue; never queue; queue above a size threshold.
 - **Choice:** files over `INLINE_UPLOAD_MAX_BYTES` (1 MB default) become BullMQ jobs (3 attempts, exponential backoff from 2 s). Smaller files load during the request and return the quality report directly. Without `REDIS_URL` the same job function runs in-process with the same retry policy.
 - **Why:** small files stay instant and simple; large ones return a job id in ~50 ms (see METRICS.md). Progress goes from the worker to Redis through `job.updateProgress`, and the API's `QueueEvents` listener relays it to the workspace's Socket.io room, so the worker can run as a separate process. On a host without background workers, `RUN_WORKER_IN_API=true` runs the worker inside the API process.
+
+## D9. A scripted fake LLM for end-to-end tests
+
+- **Problem:** Playwright tests must exercise the agent UI, including the retry path, without calling a real model.
+- **Choice:** `LLM_PROVIDER=fake` loads `agent/fakeModel.ts`, which answers each graph step from a JSON script (`frontend/e2e/fake-llm.json`). It refuses to start with `NODE_ENV=production`.
+- **Why:** the real graph, tools, safety layer, tracing and socket streaming all run; only the text generation is replaced. Unit tests use a separate in-process scripted model.
+
+## D10. Bundle Monaco instead of loading it from a CDN
+
+- **Problem:** `@monaco-editor/react` downloads Monaco from jsDelivr at runtime, which made e2e tests depend on an external CDN and added a third-party runtime dependency.
+- **Choice:** import the core editor and the SQL language from the `monaco-editor` package and pass it to the loader (`src/monacoSetup.js`).
+- **Cost:** the main bundle is now about 915 KB gzipped. Lazy-loading the editor is a possible follow-up.

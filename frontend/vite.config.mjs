@@ -8,8 +8,13 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './src/setupTests.js',
+    setupFiles: ['./src/setupTests.js', './src/test/setupMocks.jsx'],
     include: ['src/**/*.test.{js,jsx}'],
     css: false,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['src/test/**', 'src/**/*.test.{js,jsx}', 'src/main.jsx', 'src/monacoSetup.js'],
+    },
   },
 });

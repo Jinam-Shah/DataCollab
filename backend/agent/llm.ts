@@ -13,6 +13,13 @@ export function createChatModel(overrides: { temperature?: number } = {}): Model
   const provider = (process.env.LLM_PROVIDER || 'gemini').toLowerCase();
   const temperature = overrides.temperature ?? Number(process.env.LLM_TEMPERATURE ?? 0);
 
+  if (provider === 'fake') {
+    if (process.env.NODE_ENV === 'production')
+      throw new Error('LLM_PROVIDER=fake is for tests only');
+    const { FakeScriptedModel } = require('./fakeModel');
+    return { name: 'fake', model: new FakeScriptedModel({}) };
+  }
+
   if (provider === 'openai') {
     const { ChatOpenAI } = require('@langchain/openai');
     const name = process.env.OPENAI_MODEL || 'qwen2.5:7b';

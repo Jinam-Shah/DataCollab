@@ -7,8 +7,20 @@ const rs = (columns: string[], rows: unknown[][]) => ({
 
 describe('eval scoring', () => {
   it('ignores column names and row order', () => {
-    const ref = rs(['region', 'sum'], [['West', '10'], ['South', '20']]);
-    const pred = rs(['r', 'total'], [['South', 20], ['West', 10]]);
+    const ref = rs(
+      ['region', 'sum'],
+      [
+        ['West', '10'],
+        ['South', '20'],
+      ]
+    );
+    const pred = rs(
+      ['r', 'total'],
+      [
+        ['South', 20],
+        ['West', 10],
+      ]
+    );
     expect(resultsMatch(ref, pred)).toBe(true);
   });
 
@@ -26,13 +38,41 @@ describe('eval scoring', () => {
   it('rejects missing columns and different row counts', () => {
     const ref = rs(['a', 'b'], [[1, 2]]);
     expect(resultsMatch(ref, rs(['a'], [[1]]))).toBe(false);
-    expect(resultsMatch(ref, rs(['a', 'b'], [[1, 2], [1, 2]]))).toBe(false);
+    expect(
+      resultsMatch(
+        ref,
+        rs(
+          ['a', 'b'],
+          [
+            [1, 2],
+            [1, 2],
+          ]
+        )
+      )
+    ).toBe(false);
   });
 
   it('keeps rows together when matching columns', () => {
-    const ref = rs(['k', 'v'], [['x', 1], ['y', 2]]);
+    const ref = rs(
+      ['k', 'v'],
+      [
+        ['x', 1],
+        ['y', 2],
+      ]
+    );
     // Same column values but paired differently: wrong.
-    expect(resultsMatch(ref, rs(['k', 'v'], [['x', 2], ['y', 1]]))).toBe(false);
+    expect(
+      resultsMatch(
+        ref,
+        rs(
+          ['k', 'v'],
+          [
+            ['x', 2],
+            ['y', 1],
+          ]
+        )
+      )
+    ).toBe(false);
   });
 
   it('uses a small numeric tolerance', () => {
@@ -44,7 +84,9 @@ describe('eval scoring', () => {
 
   it('treats a UTC-midnight timestamp as a date', () => {
     expect(normalize(new Date('2024-04-03T00:00:00Z'))).toBe('2024-04-03');
-    expect(resultsMatch(rs(['d'], [['2024-04-03']]), rs(['d'], [[new Date('2024-04-03T00:00:00Z')]]))).toBe(true);
+    expect(
+      resultsMatch(rs(['d'], [['2024-04-03']]), rs(['d'], [[new Date('2024-04-03T00:00:00Z')]]))
+    ).toBe(true);
   });
 
   it('matches two empty results', () => {

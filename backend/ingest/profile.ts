@@ -128,7 +128,8 @@ export async function profileCsv(filePath: string): Promise<Profile> {
         if (n < acc.numMin) acc.numMin = n;
         if (n > acc.numMax) acc.numMax = n;
       } else if (t === 'DATE' || t === 'TIMESTAMP') {
-        const iso = t === 'DATE' ? CSVService.convertValue(v, { type: 'DATE' }) : new Date(v).toISOString();
+        const iso =
+          t === 'DATE' ? CSVService.convertValue(v, { type: 'DATE' }) : new Date(v).toISOString();
         if (acc.strMin === null || iso < acc.strMin) acc.strMin = iso;
         if (acc.strMax === null || iso > acc.strMax) acc.strMax = iso;
       }

@@ -60,8 +60,11 @@ function LoginPage() {
 
         <div>
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">Email</label>
+            <label htmlFor="login-email" className="block text-gray-700 font-medium mb-2">
+              Email
+            </label>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -77,8 +80,11 @@ function LoginPage() {
           </div>
 
           <div className="mb-6">
-            <label className="block text-gray-700 font-medium mb-2">Password</label>
+            <label htmlFor="login-password" className="block text-gray-700 font-medium mb-2">
+              Password
+            </label>
             <input
+              id="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

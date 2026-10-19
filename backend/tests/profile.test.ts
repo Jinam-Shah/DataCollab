@@ -85,7 +85,9 @@ describe('profileCsv quality report', () => {
 
 describe('timestamps', () => {
   it('detects ISO timestamps and widens dates to timestamps', async () => {
-    const file = tmpCsv('t,d\n2024-01-01T00:37:09.096Z,2024-01-01\n2024-02-01 10:00:00+02:00,2024-02-01T08:00:00Z\n');
+    const file = tmpCsv(
+      't,d\n2024-01-01T00:37:09.096Z,2024-01-01\n2024-02-01 10:00:00+02:00,2024-02-01T08:00:00Z\n'
+    );
     const { columns, report } = await profileCsv(file);
     expect(columns.map((c) => c.type)).toEqual(['TIMESTAMP', 'TIMESTAMP']);
     expect(report.columns[0].min).toBe('2024-01-01T00:37:09.096Z');

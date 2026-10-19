@@ -108,6 +108,7 @@ function ChartBuilder({ queryResults }) {
           <select
             value={chartType}
             onChange={(e) => setChartType(e.target.value)}
+            aria-label="Chart type"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="bar">Bar Chart</option>
@@ -121,6 +122,7 @@ function ChartBuilder({ queryResults }) {
           <select
             value={xAxis}
             onChange={(e) => setXAxis(e.target.value)}
+            aria-label="X axis"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select column...</option>
@@ -137,6 +139,7 @@ function ChartBuilder({ queryResults }) {
           <select
             value={yAxis}
             onChange={(e) => setYAxis(e.target.value)}
+            aria-label="Y axis"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select column...</option>

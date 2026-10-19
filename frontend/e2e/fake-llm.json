@@ -1,0 +1,6 @@
+{
+  "What is the total amount per region?": [
+    "SELECT regon, sum(amount) AS total FROM sales GROUP BY regon",
+    "SELECT region, sum(amount) AS total FROM sales GROUP BY region ORDER BY region"
+  ]
+}

@@ -35,7 +35,10 @@ export async function seedDemo(opts: { log?: (m: string) => void } = {}) {
       log(`${table}: already loaded`);
       continue;
     }
-    await pool.query('DELETE FROM csv_files WHERE workspace_id = $1 AND table_name = $2', [slug, table]);
+    await pool.query('DELETE FROM csv_files WHERE workspace_id = $1 AND table_name = $2', [
+      slug,
+      table,
+    ]);
     const source = path.join(DATA_DIR, `${table}.csv`);
     const stored = `demo-${table}-${Date.now()}.csv`;
     fs.copyFileSync(source, path.join(UPLOAD_DIR, stored));
@@ -44,7 +47,11 @@ export async function seedDemo(opts: { log?: (m: string) => void } = {}) {
        VALUES ($1, $2, $3, $4, $5, $6, 'queued') RETURNING id`,
       [user.id, `${table}.csv`, stored, fs.statSync(source).size, slug, table]
     );
-    const result = await ingestFile({ fileId: rows[0].id, workspaceSlug: slug, filePath: path.join(UPLOAD_DIR, stored) });
+    const result = await ingestFile({
+      fileId: rows[0].id,
+      workspaceSlug: slug,
+      filePath: path.join(UPLOAD_DIR, stored),
+    });
     log(`${table}: loaded ${result.rowCount} rows in ${result.ingestMs} ms`);
   }
   return { workspace, email, password };

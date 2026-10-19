@@ -51,8 +51,32 @@ async function main() {
   const quakes = parse(await get(SOURCES.earthquakes));
   write(
     'earthquakes.csv',
-    ['event_id', 'time', 'latitude', 'longitude', 'depth_km', 'magnitude', 'mag_type', 'place', 'event_type', 'status', 'network'],
-    quakes.map((q) => [q.id, q.time, q.latitude, q.longitude, q.depth, q.mag, q.magType, q.place, q.type, q.status, q.net])
+    [
+      'event_id',
+      'time',
+      'latitude',
+      'longitude',
+      'depth_km',
+      'magnitude',
+      'mag_type',
+      'place',
+      'event_type',
+      'status',
+      'network',
+    ],
+    quakes.map((q) => [
+      q.id,
+      q.time,
+      q.latitude,
+      q.longitude,
+      q.depth,
+      q.mag,
+      q.magType,
+      q.place,
+      q.type,
+      q.status,
+      q.net,
+    ])
   );
 
   // CDC NCHS: leading causes of death by state, 1999-2017.
@@ -64,7 +88,9 @@ async function main() {
   );
 
   // Census Bureau: state population estimates (50 states + DC).
-  const census = parse(await get(SOURCES.census)).filter((c) => c.SUMLEV === '040' && c.STATE !== '72');
+  const census = parse(await get(SOURCES.census)).filter(
+    (c) => c.SUMLEV === '040' && c.STATE !== '72'
+  );
   write(
     'state_population.csv',
     ['state', 'state_fips', 'region', 'division', 'pop_2010', 'pop_2015', 'pop_2017', 'pop_2019'],

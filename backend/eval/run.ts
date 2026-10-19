@@ -67,7 +67,10 @@ export function loadQuestions(file: string): Question[] {
     .map((l) => JSON.parse(l));
 }
 
-async function fullResult(sql: string, workspace: Workspace): Promise<ResultSet | { error: string }> {
+async function fullResult(
+  sql: string,
+  workspace: Workspace
+): Promise<ResultSet | { error: string }> {
   const r = await runReadonlyQuery(sql, workspace, { pageSize: 1000 });
   return r.success ? { columns: r.columns, rows: r.rows } : { error: `${r.code}: ${r.error}` };
 }
@@ -104,7 +107,10 @@ async function main() {
   const includeProfiles = (args.profiles || 'on') !== 'off';
   const setFile = path.resolve(args.set || path.join(__dirname, 'questions.jsonl'));
   const label =
-    args.label || (mode === 'agent' ? `agent-${variant}-profiles_${includeProfiles ? 'on' : 'off'}` : `single_shot-profiles_${includeProfiles ? 'on' : 'off'}`);
+    args.label ||
+    (mode === 'agent'
+      ? `agent-${variant}-profiles_${includeProfiles ? 'on' : 'off'}`
+      : `single_shot-profiles_${includeProfiles ? 'on' : 'off'}`);
   const ids = args.ids ? new Set(args.ids.split(',')) : null;
 
   const { workspace } = await seedDemo({ log: () => {} });
@@ -143,7 +149,10 @@ async function main() {
       } else {
         predictedRows = pred.rows.length;
         verdict = resultsMatch(ref, pred, q.ordered) ? 'correct' : 'wrong';
-        reason = verdict === 'correct' ? '' : `expected ${ref.rows.length} row(s), got ${pred.rows.length}`;
+        reason =
+          verdict === 'correct'
+            ? ''
+            : `expected ${ref.rows.length} row(s), got ${pred.rows.length}`;
       }
     }
 
@@ -164,7 +173,9 @@ async function main() {
       runId: run.runId,
     };
     results.push(r);
-    console.log(`${q.id.padEnd(4)} ${verdict.padEnd(7)} ${String(r.latencyMs).padStart(6)} ms  ${r.attempts} att  ${reason}`);
+    console.log(
+      `${q.id.padEnd(4)} ${verdict.padEnd(7)} ${String(r.latencyMs).padStart(6)} ms  ${r.attempts} att  ${reason}`
+    );
   }
 
   const summary = summarize(results);
@@ -191,7 +202,9 @@ async function main() {
     ) + '\n'
   );
 
-  console.log('\n| Subset | N | Correct | Wrong | Error | Accuracy | Median latency | Mean attempts |');
+  console.log(
+    '\n| Subset | N | Correct | Wrong | Error | Accuracy | Median latency | Mean attempts |'
+  );
   console.log('|---|---|---|---|---|---|---|---|');
   for (const [name, s] of Object.entries(summary)) {
     console.log(

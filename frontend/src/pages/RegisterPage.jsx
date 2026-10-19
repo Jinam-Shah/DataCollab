@@ -53,8 +53,11 @@ function RegisterPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">Username</label>
+            <label htmlFor="reg-username" className="block text-gray-700 font-medium mb-2">
+              Username
+            </label>
             <input
+              id="reg-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -67,8 +70,11 @@ function RegisterPage() {
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">Email</label>
+            <label htmlFor="reg-email" className="block text-gray-700 font-medium mb-2">
+              Email
+            </label>
             <input
+              id="reg-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -80,8 +86,11 @@ function RegisterPage() {
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">Password</label>
+            <label htmlFor="reg-password" className="block text-gray-700 font-medium mb-2">
+              Password
+            </label>
             <input
+              id="reg-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -94,13 +103,14 @@ function RegisterPage() {
           </div>
 
           <div className="mb-6">
-            <label className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="reg-workspace" className="block text-gray-700 font-medium mb-2">
               Workspace ID
               <span className="text-sm text-gray-500 font-normal ml-2">
                 (optional - leave blank for default)
               </span>
             </label>
             <input
+              id="reg-workspace"
               type="text"
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}

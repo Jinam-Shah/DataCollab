@@ -17,7 +17,9 @@
     "start:worker": "node dist/worker.js",
     "seed:demo": "tsx scripts/seed_demo.ts",
     "fetch:demo-data": "node scripts/fetch_demo_data.js",
-    "eval": "tsx eval/run.ts"
+    "eval": "tsx eval/run.ts",
+    "e2e:server": "tsx scripts/e2e_server.js",
+    "test:coverage": "jest --runInBand --coverage"
   },
   "keywords": [],
   "author": "",

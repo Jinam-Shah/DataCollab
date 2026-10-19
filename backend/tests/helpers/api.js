@@ -7,7 +7,11 @@ let counter = 0;
 // Register a fresh user in `workspaceId` and return a supertest agent bound to its token.
 async function registerUser(workspaceId) {
   counter += 1;
-  const name = `u${process.pid.toString(36)}${Date.now().toString(36).slice(-5)}${counter}${Math.random().toString(36).slice(2, 5)}`.slice(0, 40);
+  const name =
+    `u${process.pid.toString(36)}${Date.now().toString(36).slice(-5)}${counter}${Math.random().toString(36).slice(2, 5)}`.slice(
+      0,
+      40
+    );
   const res = await request(app)
     .post('/api/auth/register')
     .send({ username: name, email: `${name}@test.dev`, password: 'secret123', workspaceId });

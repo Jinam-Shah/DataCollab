@@ -3,13 +3,18 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const assets = ['db/migrations'];
+const assets = [
+  { dir: 'db/migrations', ext: ['.sql'] },
+  { dir: 'eval/data', ext: ['.csv'] },
+  { dir: 'eval', ext: ['.jsonl'] },
+];
 
-for (const rel of assets) {
-  const src = path.join(root, rel);
-  const dest = path.join(root, 'dist', rel);
+for (const { dir, ext } of assets) {
+  const src = path.join(root, dir);
+  const dest = path.join(root, 'dist', dir);
   fs.mkdirSync(dest, { recursive: true });
   for (const file of fs.readdirSync(src)) {
-    if (file.endsWith('.sql')) fs.copyFileSync(path.join(src, file), path.join(dest, file));
+    if (ext.includes(path.extname(file)))
+      fs.copyFileSync(path.join(src, file), path.join(dest, file));
   }
 }
