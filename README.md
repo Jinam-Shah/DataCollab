@@ -230,13 +230,10 @@ GEMINI_API_KEY=your_gemini_api_key_here
 NODE_ENV=development
 ```
 
-**Create database:**
+**Create the database and run migrations:**
 ```bash
-psql -U postgres
-CREATE DATABASE datacollab;
-\c datacollab
-
-# Paste the CREATE TABLE commands from Database Schema above
+createdb datacollab          # or: psql -U postgres -c "CREATE DATABASE datacollab"
+npm run migrate              # applies backend/db/migrations in order
 ```
 
 **Start backend server:**
@@ -264,13 +261,13 @@ cp .env.example .env
 
 **Required environment variables (see `frontend/.env.example`):**
 ```env
-REACT_APP_API_URL=http://localhost:5000
-REACT_APP_SOCKET_URL=http://localhost:5000
+VITE_API_URL=http://localhost:5000
+VITE_SOCKET_URL=http://localhost:5000
 ```
 
-**Start development server:**
+**Start development server (Vite):**
 ```bash
-npm start
+npm run dev
 ```
 
 Frontend runs on `http://localhost:3000`
