@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getUser, logout } from '../utils/auth';
 import FileUpload from '../components/FileUpload/FileUpload';
 import FileList from '../components/FileUpload/FileList';
@@ -53,6 +54,9 @@ function Dashboard() {
             <p className="text-sm text-gray-500">Workspace: {user?.workspaceId || 'default'}</p>
           </div>
           <div className="flex items-center gap-4">
+            <Link to="/runs" className="text-blue-600 underline">
+              Run history
+            </Link>
             <span className="text-gray-700">Welcome, {user?.username}!</span>
             <button
               onClick={logout}

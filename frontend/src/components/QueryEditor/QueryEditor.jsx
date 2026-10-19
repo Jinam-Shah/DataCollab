@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
 import api from '../../services/api';
 import TextToSQL from '../AIQuery/TextToSQL';
+import AgentPanel from '../Agent/AgentPanel';
 import ChartBuilder from '../Visualizations/ChartBuilder';
 
 const PAGE_SIZE = 100;
@@ -91,6 +92,7 @@ function QueryEditor({ selectedFile }) {
 
       {selectedFile && (
         <>
+          <AgentPanel onOpenSql={(sql) => setQuery(sql)} />
           <TextToSQL
             selectedFile={selectedFile}
             onQueryGenerated={(generatedQuery) => setQuery(generatedQuery)}

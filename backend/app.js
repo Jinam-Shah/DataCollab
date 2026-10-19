@@ -41,6 +41,7 @@ function createApp() {
   });
   io.on('connection', (socket) => {
     socket.join(workspaceRoom(socket.data.workspaceId));
+    socket.join(`user:${socket.data.userId}`);
   });
 
   app.use(cors(corsOptions));
@@ -59,6 +60,7 @@ function createApp() {
   app.use('/api/queries', require('./routes/queries'));
   app.use('/api/ai', require('./routes/ai'));
   app.use('/api/chat', require('./routes/chat'));
+  app.use('/api/agent', require('./routes/agent'));
 
   app.get('/health', (req, res) => {
     res.json({
@@ -74,6 +76,8 @@ function createApp() {
     io.to(workspaceRoom(workspaceId)).emit(event, payload);
   };
   app.set('broadcast', broadcast);
+  // Agent progress is private to the user who asked.
+  app.set('emitToUser', (userId, event, payload) => io.to(`user:${userId}`).emit(event, payload));
   require('./ingest/queue').setBroadcaster(broadcast);
 
   app.use((req, res) => {

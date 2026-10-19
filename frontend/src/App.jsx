@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
+import RunHistory from './pages/RunHistory';
 import { isAuthenticated } from './utils/auth';
 
 function PrivateRoute({ children }) {
@@ -20,6 +21,14 @@ function App() {
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/runs"
+          element={
+            <PrivateRoute>
+              <RunHistory />
             </PrivateRoute>
           }
         />
