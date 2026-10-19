@@ -26,8 +26,12 @@ export function setBroadcaster(fn: Broadcast): void {
   broadcast = fn;
 }
 
+// INGEST_QUEUE=inline keeps ingestion in-process even when Redis is configured. Used on free
+// hosting: an idle BullMQ worker polls Redis continuously, which would use up a large part of
+// Upstash's 500K-commands-per-month free tier. Redis is then used only for the cache, rate
+// limits and Socket.io.
 export function queueEnabled(): boolean {
-  return Boolean(process.env.REDIS_URL);
+  return Boolean(process.env.REDIS_URL) && process.env.INGEST_QUEUE !== 'inline';
 }
 
 // BullMQ does not close connections it was handed, so keep track of them for shutdown.

@@ -10,6 +10,11 @@ async function main() {
   if (process.env.RUN_MIGRATIONS === 'true') await migrate();
   await initSqlGuard();
 
+  // Free hosts have no shell for one-off commands, so the demo data can be seeded on start.
+  if (process.env.SEED_DEMO === 'true') {
+    await require('./scripts/seed_demo').seedDemo({ log: (m) => console.log(`seed: ${m}`) });
+  }
+
   const { rows } = await pool.query('SELECT NOW()');
   console.log('Database connected at:', rows[0].now);
 

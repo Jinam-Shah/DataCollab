@@ -93,3 +93,10 @@ Each entry: the problem, the options, the choice, and why.
 - **Options:** `auto-instrumentations-node` (instruments around 40 libraries); only the libraries we use.
 - **Choice:** HTTP, Express, pg and ioredis instrumentations, plus four custom instruments. Agent steps become child spans of `agent.run`, created after each step with its measured latency.
 - **Why:** smaller dependency tree and startup cost, and every span or metric on the dashboard is one we chose. The custom HTTP histogram is labelled with route patterns (`/api/files/:id`), which keeps the number of Prometheus series bounded.
+
+## D15. Free hosting: Render + Neon + Upstash + Vercel, managed with Terraform
+
+- **Problem:** a public demo on free services only, reproducible from code.
+- **Choice:** Vercel Hobby for the static frontend; Render free web service (Docker) for the API; Neon Free for PostgreSQL with pgvector; Upstash Free for Redis. All four have maintained Terraform providers (Vercel and Render partner-tier, Neon and Upstash community), so they are all defined in `infra/terraform`.
+- **Free-tier constraints that changed the design:** Render offers no free background workers, so the API ingests uploads itself; `INGEST_QUEUE=inline` keeps BullMQ from polling Upstash all day and using up its 500K monthly commands; `SEED_DEMO=true` replaces a one-off seed command; Render and Neon both sleep when idle, so the first request after a while takes about a minute.
+- **Deploy gate:** `deploy.yml` runs only after CI passes on `main` (`workflow_run`), using a Render deploy hook and the Vercel CLI, instead of each platform's auto-deploy on every push.

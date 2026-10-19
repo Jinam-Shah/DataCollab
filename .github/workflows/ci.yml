@@ -132,6 +132,19 @@ jobs:
       - name: Render with Kustomize and validate
         run: kubectl kustomize k8s | kubeconform -strict -summary -kubernetes-version 1.32.0 -
 
+  terraform:
+    name: Terraform (fmt, validate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
+
   docker:
     name: Docker build
     runs-on: ubuntu-latest
