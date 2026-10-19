@@ -8,6 +8,7 @@ import QueryEditor from '../components/QueryEditor/QueryEditor';
 import ChatSidebar from '../components/Chat/ChatSidebar';
 import QualityReport from '../components/FileUpload/QualityReport';
 import DocumentsPanel from '../components/Documents/DocumentsPanel';
+import ApiTokens from '../components/Settings/ApiTokens';
 import { connectSocket, disconnectSocket, initSocket } from '../services/socket';
 
 function Dashboard() {
@@ -82,6 +83,7 @@ function Dashboard() {
               onFileDelete={handleFileDelete}
             />
             <DocumentsPanel />
+            <ApiTokens />
           </div>
           <div className="lg:row-span-2">
             <div className="sticky top-8 h-[600px]">

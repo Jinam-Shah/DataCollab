@@ -80,3 +80,9 @@ Each entry: the problem, the options, the choice, and why.
 - **Problem:** vector search misses exact numbers and names; keyword search misses paraphrases.
 - **Choice:** retrieve 20 candidates from each (pgvector HNSW cosine, PostgreSQL full-text search) and merge with reciprocal rank fusion, `score = Σ 1 / (60 + rank)`. RRF uses ranks, not raw scores, so cosine distances and `ts_rank` values never need to be put on the same scale.
 - **What the measurement changed:** the first keyword retriever (an AND query falling back to OR, ranked by `ts_rank_cd`) found only 14/25 dev questions, and fusing it made hybrid *worse* than vector alone (80% against 84%). Ranking an OR query with `ts_rank(..., 1)` (normalized by chunk length) raised keyword to 21/25 and hybrid to 24/25. That change was chosen on the dev questions, so 15 new held-out questions were written afterwards: there, hybrid (80%) beats vector-only (60%), hit rate is the same for both keyword rankings (12/15), and MRR improves from 0.511 to 0.602. See METRICS.md.
+
+## D13. MCP server: one workspace per token, stateless HTTP
+
+- **Problem:** MCP clients need access to one workspace's data without a user's login session.
+- **Choice:** workspace-scoped API tokens (random 24 bytes, stored as SHA-256), a server instance per request bound to the token's workspace, and Streamable HTTP in stateless mode at `/mcp`, plus stdio for local clients.
+- **Why:** tokens can be revoked one by one and never appear in the database in plain text. Stateless HTTP works behind any load balancer and on hosts that sleep (Render free tier), because no session is kept in memory. All tools reuse the Phase 1 path, so a client can do nothing a logged-in user could not.

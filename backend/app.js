@@ -62,6 +62,8 @@ function createApp() {
   app.use('/api/chat', require('./routes/chat'));
   app.use('/api/agent', require('./routes/agent'));
   app.use('/api/documents', require('./routes/documents'));
+  app.use('/api/tokens', require('./routes/tokens'));
+  app.use('/mcp', require('./mcp/http').mcpRouter);
 
   app.get('/health', (req, res) => {
     res.json({
