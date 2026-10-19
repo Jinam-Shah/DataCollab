@@ -60,10 +60,11 @@ async function geminiEmbed(texts: string[], taskType: string): Promise<number[][
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += 100) {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:batchEmbedContents?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:batchEmbedContents`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // The key goes in a header, not the URL, so it never appears in proxy or request logs.
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({
           requests: texts.slice(i, i + 100).map((text) => ({
             model: `models/${GEMINI_MODEL}`,

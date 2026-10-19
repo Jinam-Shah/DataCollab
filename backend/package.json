@@ -45,7 +45,7 @@
     "@opentelemetry/sdk-trace-node": "^2.12.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@socket.io/redis-adapter": "^8.3.0",
-    "axios": "^1.7.9",
+    "axios": "^1.20.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^6.3.17",
     "cors": "^2.8.5",

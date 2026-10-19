@@ -6,6 +6,7 @@
 //   --set <file>               question file (default eval/questions.jsonl)
 //   --ids e01,m02              only these questions
 //   --label <name>             name for this run (default <mode>-<variant>-<profiles>)
+// Environment: EVAL_DELAY_MS pauses between questions (free-tier rate limits).
 //
 // For each question: run the reference SQL and the pipeline's SQL through the read-only layer,
 // compare result sets (eval/score.ts), and mark it correct, wrong or error. Writes
@@ -135,6 +136,16 @@ async function main() {
       modelInfo,
     });
 
+    // A quota or rate-limit failure says nothing about the agent: stop instead of scoring it.
+    if (
+      run.status === 'error' &&
+      /429|quota|RESOURCE_EXHAUSTED|rate limit/i.test(run.error ?? '')
+    ) {
+      throw new Error(
+        `Stopped at ${q.id}: the model provider rejected the request (${run.error?.slice(0, 200)})`
+      );
+    }
+
     let verdict: Verdict;
     let reason: string;
     let predictedRows: number | null = null;
@@ -173,6 +184,9 @@ async function main() {
       runId: run.runId,
     };
     results.push(r);
+    // EVAL_DELAY_MS spaces out questions to stay under free-tier requests-per-minute limits.
+    if (process.env.EVAL_DELAY_MS)
+      await new Promise((res) => setTimeout(res, Number(process.env.EVAL_DELAY_MS)));
     console.log(
       `${q.id.padEnd(4)} ${verdict.padEnd(7)} ${String(r.latencyMs).padStart(6)} ms  ${r.attempts} att  ${reason}`
     );
