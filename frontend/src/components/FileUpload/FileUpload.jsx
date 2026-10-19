@@ -21,7 +21,7 @@ function FileUpload({ onUploadSuccess }) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
       if (droppedFile.name.endsWith('.csv')) {
@@ -65,7 +65,7 @@ function FileUpload({ onUploadSuccess }) {
       });
 
       console.log('Upload success:', response.data);
-      
+
       if (onUploadSuccess) {
         onUploadSuccess(response.data.file);
       }
@@ -103,9 +103,7 @@ function FileUpload({ onUploadSuccess }) {
           <div>
             <p className="text-gray-700 mb-2">Selected file:</p>
             <p className="text-blue-600 font-medium">{file.name}</p>
-            <p className="text-gray-500 text-sm mt-1">
-              {(file.size / 1024).toFixed(2)} KB
-            </p>
+            <p className="text-gray-500 text-sm mt-1">{(file.size / 1024).toFixed(2)} KB</p>
           </div>
         ) : (
           <div>

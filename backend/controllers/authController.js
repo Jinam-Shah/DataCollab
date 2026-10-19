@@ -4,11 +4,7 @@ const User = require('../models/User');
 // Generate JWT token
 // Generate JWT token
 const generateToken = (userId, username, workspaceId) => {
-  return jwt.sign(
-    { userId, username, workspaceId }, 
-    process.env.JWT_SECRET, 
-    { expiresIn: '7d' }
-  );
+  return jwt.sign({ userId, username, workspaceId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
 // Register new user
@@ -54,7 +50,9 @@ exports.register = async (req, res) => {
     // Generate token with workspace
     const token = generateToken(user.id, user.username, user.workspace_id);
 
-    console.log(`New user registered: ${user.username} (${user.email}) in workspace: ${user.workspace_id}`);
+    console.log(
+      `New user registered: ${user.username} (${user.email}) in workspace: ${user.workspace_id}`
+    );
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -63,8 +61,8 @@ exports.register = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        workspaceId: user.workspace_id
-      }
+        workspaceId: user.workspace_id,
+      },
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -106,8 +104,8 @@ exports.login = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        workspaceId: user.workspace_id
-      }
+        workspaceId: user.workspace_id,
+      },
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -119,7 +117,7 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

@@ -31,12 +31,12 @@ function FileList({ refresh, onFileSelect, onFileDelete }) {
 
     try {
       await api.delete(`/api/files/${fileId}`);
-      
+
       // Notify parent that file was deleted
       if (onFileDelete) {
         onFileDelete(fileId);
       }
-      
+
       loadFiles();
     } catch (err) {
       console.error('Delete error:', err);
@@ -94,9 +94,7 @@ function FileList({ refresh, onFileSelect, onFileDelete }) {
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h3 className="font-medium text-gray-900">
-                  {file.original_filename}
-                </h3>
+                <h3 className="font-medium text-gray-900">{file.original_filename}</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   {file.row_count} rows, {file.column_count} columns
                 </p>
@@ -106,9 +104,7 @@ function FileList({ refresh, onFileSelect, onFileDelete }) {
               </div>
 
               <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-500">
-                  {formatFileSize(file.file_size)}
-                </span>
+                <span className="text-sm text-gray-500">{formatFileSize(file.file_size)}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

@@ -10,25 +10,25 @@ class SQLService {
     }
 
     const startTime = Date.now();
-    
+
     try {
       const result = await pool.query(query);
       const executionTime = Date.now() - startTime;
-      
+
       return {
         success: true,
         rows: result.rows,
         rowCount: result.rowCount,
         executionTime,
-        columns: result.fields ? result.fields.map(f => f.name) : []
+        columns: result.fields ? result.fields.map((f) => f.name) : [],
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      
+
       return {
         success: false,
         error: this.formatError(error),
-        executionTime
+        executionTime,
       };
     }
   }
@@ -36,7 +36,7 @@ class SQLService {
   // Validate SQL query for safety
   static validateQuery(query) {
     const normalizedQuery = query.toLowerCase().trim();
-    
+
     // Block dangerous operations
     const dangerousKeywords = [
       'drop table',
@@ -54,58 +54,58 @@ class SQLService {
       'create table',
       'create database',
       'grant',
-      'revoke'
+      'revoke',
     ];
-    
+
     for (const keyword of dangerousKeywords) {
       if (normalizedQuery.includes(keyword)) {
         return {
           isValid: false,
-          error: `Query contains dangerous operation: ${keyword}`
+          error: `Query contains dangerous operation: ${keyword}`,
         };
       }
     }
-    
+
     // Must be a SELECT query for now
     if (!normalizedQuery.startsWith('select')) {
       return {
         isValid: false,
-        error: 'Only SELECT queries are allowed'
+        error: 'Only SELECT queries are allowed',
       };
     }
-    
+
     return { isValid: true };
   }
 
   // Format SQL error for user-friendly display
   static formatError(error) {
     const message = error.message;
-    
+
     // Common SQL errors
     if (message.includes('syntax error')) {
       return 'SQL Syntax Error: Check your query syntax';
     }
-    
+
     if (message.includes('column') && message.includes('does not exist')) {
       const match = message.match(/column "([^"]+)"/);
       const column = match ? match[1] : 'unknown';
       return `Column "${column}" does not exist in the table`;
     }
-    
+
     if (message.includes('relation') && message.includes('does not exist')) {
       const match = message.match(/relation "([^"]+)"/);
       const table = match ? match[1] : 'unknown';
       return `Table "${table}" does not exist`;
     }
-    
+
     if (message.includes('division by zero')) {
       return 'Division by zero error';
     }
-    
+
     if (message.includes('invalid input syntax')) {
       return 'Invalid data type in query';
     }
-    
+
     // Return original error if we can't format it
     return message;
   }
@@ -121,7 +121,7 @@ class SQLService {
       WHERE table_name = $1
       ORDER BY ordinal_position
     `;
-    
+
     const result = await pool.query(query, [tableName]);
     return result.rows;
   }
@@ -130,7 +130,7 @@ class SQLService {
   static async executeQueryWithPagination(query, page = 1, pageSize = 100) {
     const offset = (page - 1) * pageSize;
     const paginatedQuery = `${query} LIMIT ${pageSize} OFFSET ${offset}`;
-    
+
     return await this.executeQuery(paginatedQuery);
   }
 }

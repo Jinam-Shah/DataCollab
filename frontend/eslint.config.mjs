@@ -5,7 +5,16 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import prettier from 'eslint-config-prettier';
 
 export default [
-  { ignores: ['build/', 'node_modules/', 'coverage/', 'e2e/', 'playwright-report/', 'test-results/'] },
+  {
+    ignores: [
+      'build/',
+      'node_modules/',
+      'coverage/',
+      'e2e/',
+      'playwright-report/',
+      'test-results/',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['**/*.{js,jsx}'],

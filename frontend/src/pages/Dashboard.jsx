@@ -15,7 +15,7 @@ function Dashboard() {
   React.useEffect(() => {
     initSocket();
     connectSocket();
-  
+
     return () => {
       disconnectSocket();
     };
@@ -23,7 +23,7 @@ function Dashboard() {
 
   const handleUploadSuccess = (file) => {
     console.log('File uploaded:', file);
-    setRefreshFiles(prev => prev + 1);
+    setRefreshFiles((prev) => prev + 1);
     setSelectedFile(file);
   };
 
@@ -47,40 +47,40 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow-sm">
-  <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">DataCollab</h1>
-      <p className="text-sm text-gray-500">Workspace: {user?.workspaceId || 'default'}</p>
-    </div>
-    <div className="flex items-center gap-4">
-      <span className="text-gray-700">Welcome, {user?.username}!</span>
-      <button
-        onClick={logout}
-        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-      >
-        Logout
-      </button>
-    </div>
-  </div>
-</nav>
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">DataCollab</h1>
+            <p className="text-sm text-gray-500">Workspace: {user?.workspaceId || 'default'}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-gray-700">Welcome, {user?.username}!</span>
+            <button
+              onClick={logout}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </nav>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">          
-        <div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div>
             <FileUpload onUploadSuccess={handleUploadSuccess} />
-        </div>
+          </div>
 
           <div>
-            <FileList 
-              refresh={refreshFiles} 
+            <FileList
+              refresh={refreshFiles}
               onFileSelect={handleFileSelect}
               onFileDelete={handleFileDelete}
             />
           </div>
           <div className="lg:row-span-2">
             <div className="sticky top-8 h-[600px]">
-            <ChatSidebar />
-          </div>
+              <ChatSidebar />
+            </div>
           </div>
         </div>
 
@@ -90,7 +90,7 @@ function Dashboard() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               File Details: {selectedFile.originalFilename || selectedFile.original_filename}
             </h2>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div>
                 <p className="text-sm text-gray-600">Rows</p>
@@ -112,9 +112,7 @@ function Dashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">File ID</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {selectedFile.id}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{selectedFile.id}</p>
               </div>
             </div>
 
@@ -155,13 +153,8 @@ function Dashboard() {
                       {selectedFile.preview.map((row, rowIndex) => (
                         <tr key={rowIndex} className="hover:bg-gray-50">
                           {Object.values(row).map((value, colIndex) => (
-                            <td
-                              key={colIndex}
-                              className="px-4 py-2 border-b text-sm text-gray-900"
-                            >
-                              {value !== null && value !== undefined
-                                ? String(value)
-                                : 'null'}
+                            <td key={colIndex} className="px-4 py-2 border-b text-sm text-gray-900">
+                              {value !== null && value !== undefined ? String(value) : 'null'}
                             </td>
                           ))}
                         </tr>

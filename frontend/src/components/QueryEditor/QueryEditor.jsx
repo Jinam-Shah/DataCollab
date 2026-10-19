@@ -22,7 +22,7 @@ function QueryEditor({ selectedFile }) {
     try {
       const response = await api.post('/api/queries/execute', {
         query: query,
-        fileId: selectedFile?.id
+        fileId: selectedFile?.id,
       });
 
       if (response.data.success) {
@@ -53,16 +53,16 @@ function QueryEditor({ selectedFile }) {
     return [
       {
         title: 'View all data',
-        query: `SELECT * FROM "${tableName}" LIMIT 100`
+        query: `SELECT * FROM "${tableName}" LIMIT 100`,
       },
       {
         title: 'Count rows',
-        query: `SELECT COUNT(*) as total FROM "${tableName}"`
+        query: `SELECT COUNT(*) as total FROM "${tableName}"`,
       },
       {
         title: 'Get first 10 rows',
-        query: `SELECT * FROM "${tableName}" LIMIT 10`
-      }
+        query: `SELECT * FROM "${tableName}" LIMIT 10`,
+      },
     ];
   };
 
@@ -72,7 +72,8 @@ function QueryEditor({ selectedFile }) {
         <h2 className="text-xl font-bold text-gray-900">SQL Query Editor</h2>
         {selectedFile && (
           <span className="text-sm text-gray-600">
-            Table: <span className="font-mono text-blue-600">
+            Table:{' '}
+            <span className="font-mono text-blue-600">
               {selectedFile.tableName || `csv_data_${selectedFile.id}`}
             </span>
           </span>
@@ -87,15 +88,12 @@ function QueryEditor({ selectedFile }) {
 
       {selectedFile && (
         <>
-          <TextToSQL 
-            selectedFile={selectedFile} 
+          <TextToSQL
+            selectedFile={selectedFile}
             onQueryGenerated={(generatedQuery) => setQuery(generatedQuery)}
           />
-
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sample Queries:
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sample Queries:</label>
             <div className="flex flex-wrap gap-2">
               {getSampleQueries().map((sample, index) => (
                 <button
@@ -108,11 +106,8 @@ function QueryEditor({ selectedFile }) {
               ))}
             </div>
           </div>
-
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              SQL Query:
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">SQL Query:</label>
             <div className="border border-gray-300 rounded-lg overflow-hidden">
               <Editor
                 height="200px"
@@ -125,12 +120,11 @@ function QueryEditor({ selectedFile }) {
                   fontSize: 14,
                   lineNumbers: 'on',
                   scrollBeyondLastLine: false,
-                  automaticLayout: true
+                  automaticLayout: true,
                 }}
               />
             </div>
           </div>
-
           <button
             onClick={handleRunQuery}
             disabled={loading || !query.trim()}
@@ -138,28 +132,20 @@ function QueryEditor({ selectedFile }) {
           >
             {loading ? 'Executing...' : 'Run Query'}
           </button>
-
           {error && (
             <div className="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               <strong>Error:</strong> {error}
             </div>
           )}
-
           {results && results.success && (
             <div className="mt-6">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium text-gray-900">
-                  Results ({results.rowCount} rows)
-                </h3>
-                <span className="text-sm text-gray-600">
-                  Executed in {results.executionTime}ms
-                </span>
+                <h3 className="font-medium text-gray-900">Results ({results.rowCount} rows)</h3>
+                <span className="text-sm text-gray-600">Executed in {results.executionTime}ms</span>
               </div>
 
               {results.data.length === 0 ? (
-                <div className="text-center py-4 text-gray-600">
-                  Query returned no results
-                </div>
+                <div className="text-center py-4 text-gray-600">Query returned no results</div>
               ) : (
                 <div className="overflow-x-auto border border-gray-300 rounded-lg">
                   <table className="min-w-full">
@@ -179,10 +165,7 @@ function QueryEditor({ selectedFile }) {
                       {results.data.map((row, rowIndex) => (
                         <tr key={rowIndex} className="hover:bg-gray-50">
                           {results.columns.map((col) => (
-                            <td
-                              key={col}
-                              className="px-4 py-2 border-b text-sm text-gray-900"
-                            >
+                            <td key={col} className="px-4 py-2 border-b text-sm text-gray-900">
                               {row[col] !== null && row[col] !== undefined
                                 ? String(row[col])
                                 : 'null'}
@@ -194,8 +177,9 @@ function QueryEditor({ selectedFile }) {
                   </table>
                 </div>
               )}
-            </div>           
-          )} <ChartBuilder queryResults={results} />
+            </div>
+          )}{' '}
+          <ChartBuilder queryResults={results} />
         </>
       )}
     </div>

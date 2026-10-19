@@ -12,12 +12,12 @@ function ChatSidebar() {
 
   useEffect(() => {
     loadMessages();
-    
+
     const socket = getSocket();
     if (socket) {
       socket.on('chat:message', handleNewMessage);
     }
-    
+
     return () => {
       if (socket) {
         socket.off('chat:message', handleNewMessage);
@@ -39,16 +39,16 @@ function ChatSidebar() {
   };
 
   const handleNewMessage = (message) => {
-    setMessages(prev => [...prev, message]);
+    setMessages((prev) => [...prev, message]);
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
+
     if (!newMessage.trim() || loading) return;
-    
+
     setLoading(true);
-    
+
     try {
       await api.post('/api/chat/messages', { message: newMessage });
       setNewMessage('');
@@ -82,23 +82,17 @@ function ChatSidebar() {
             No messages yet. Start the conversation!
           </div>
         )}
-        
+
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`${
-              msg.username === currentUser?.username
-                ? 'ml-auto bg-blue-100'
-                : 'mr-auto bg-gray-100'
+              msg.username === currentUser?.username ? 'ml-auto bg-blue-100' : 'mr-auto bg-gray-100'
             } max-w-[80%] rounded-lg p-3`}
           >
             <div className="flex items-baseline gap-2 mb-1">
-              <span className="font-medium text-sm text-gray-900">
-                {msg.username}
-              </span>
-              <span className="text-xs text-gray-500">
-                {formatTime(msg.sent_at)}
-              </span>
+              <span className="font-medium text-sm text-gray-900">{msg.username}</span>
+              <span className="text-xs text-gray-500">{formatTime(msg.sent_at)}</span>
             </div>
             <p className="text-sm text-gray-800 break-words">{msg.message}</p>
           </div>

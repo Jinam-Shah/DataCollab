@@ -14,23 +14,23 @@ exports.textToSQL = async (req, res) => {
     }
 
     const tableName = `csv_data_${fileId}`;
-    
+
     const schemaQuery = `
       SELECT column_name, data_type
       FROM information_schema.columns
       WHERE table_name = $1
       ORDER BY ordinal_position
     `;
-    
+
     const schemaResult = await pool.query(schemaQuery, [tableName]);
-    
+
     if (schemaResult.rows.length === 0) {
       return res.status(404).json({ error: 'Table schema not found' });
     }
 
     const tableSchema = {
       tableName: tableName,
-      columns: schemaResult.rows
+      columns: schemaResult.rows,
     };
 
     console.log(`Generating SQL for: "${question}"`);
@@ -40,13 +40,12 @@ exports.textToSQL = async (req, res) => {
     res.json({
       success: true,
       query: result.query,
-      question: question
+      question: question,
     });
-
   } catch (error) {
     console.error('Text-to-SQL error:', error);
-    res.status(500).json({ 
-      error: error.message || 'Failed to generate SQL query' 
+    res.status(500).json({
+      error: error.message || 'Failed to generate SQL query',
     });
   }
 };

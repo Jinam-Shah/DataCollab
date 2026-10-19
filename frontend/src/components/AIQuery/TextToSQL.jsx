@@ -18,7 +18,7 @@ function TextToSQL({ selectedFile, onQueryGenerated }) {
     try {
       const response = await api.post('/api/ai/text-to-sql', {
         question: question,
-        fileId: selectedFile.id
+        fileId: selectedFile.id,
       });
 
       if (response.data.success) {
@@ -41,14 +41,12 @@ function TextToSQL({ selectedFile, onQueryGenerated }) {
     'Count total rows',
     'Show unique departments',
     'Find average salary',
-    'Show top 5 highest salaries'
+    'Show top 5 highest salaries',
   ];
 
   return (
     <div className="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-200">
-      <h3 className="font-medium text-gray-900 mb-3">
-        AI-Powered Query Generator
-      </h3>
+      <h3 className="font-medium text-gray-900 mb-3">AI-Powered Query Generator</h3>
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded mb-3 text-sm">

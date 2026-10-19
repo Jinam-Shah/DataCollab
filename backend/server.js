@@ -10,12 +10,11 @@ const server = http.createServer(app);
 // Socket.io setup with CORS
 const io = socketIo(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? process.env.FRONTEND_URL 
-      : 'http://localhost:3000',
+    origin:
+      process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:3000',
     methods: ['GET', 'POST'],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
 // Middleware
@@ -61,17 +60,17 @@ app.use('/api/chat', chatRoutes);
 
 // Basic health check route
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     message: 'DataCollab API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
-  
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
