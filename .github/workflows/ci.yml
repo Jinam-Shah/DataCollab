@@ -120,6 +120,18 @@ jobs:
             frontend/playwright-report
           retention-days: 7
 
+  k8s:
+    name: Kubernetes manifests (kubeconform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          sudo mv kubeconform /usr/local/bin/
+      - name: Render with Kustomize and validate
+        run: kubectl kustomize k8s | kubeconform -strict -summary -kubernetes-version 1.32.0 -
+
   docker:
     name: Docker build
     runs-on: ubuntu-latest

@@ -1,12 +1,13 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+// Empty means "same origin", like VITE_API_URL.
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:5000';
 
 let socket = null;
 
 export const initSocket = () => {
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    socket = io(SOCKET_URL || undefined, {
       transports: ['websocket'],
       autoConnect: false,
       // The server only accepts sockets with a valid JWT and joins them to their workspace room.

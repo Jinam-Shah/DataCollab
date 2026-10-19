@@ -1,0 +1,16 @@
+# One-node kind cluster with ports 80/443 mapped for ingress-nginx.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: datacollab
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP

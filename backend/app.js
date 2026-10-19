@@ -26,6 +26,15 @@ function createApp() {
 
   const io = new Server(server, { cors: { ...corsOptions, methods: ['GET', 'POST'] } });
 
+  // With several API replicas (Kubernetes HPA), events must reach sockets connected to any
+  // replica. The Redis adapter relays them over Redis pub/sub.
+  if (process.env.REDIS_URL && process.env.NODE_ENV !== 'test') {
+    const IORedis = require('ioredis');
+    const { createAdapter } = require('@socket.io/redis-adapter');
+    const pub = new IORedis(process.env.REDIS_URL);
+    io.adapter(createAdapter(pub, pub.duplicate()));
+  }
+
   // Sockets must present the same JWT as the REST API; each joins only its workspace's room.
   io.use((socket, next) => {
     try {

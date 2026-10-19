@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// An empty VITE_API_URL means "same origin" (behind the Kubernetes ingress).
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
 
 // Create axios instance
 const api = axios.create({
