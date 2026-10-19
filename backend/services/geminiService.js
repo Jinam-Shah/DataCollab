@@ -46,7 +46,7 @@ class GeminiService {
       };
     } catch (error) {
       console.error('Gemini API error:', error.response?.data || error.message);
-      throw new Error('Failed to generate SQL query');
+      throw new Error('Failed to generate SQL query', { cause: error });
     }
   }
 
@@ -74,24 +74,15 @@ QUESTION: ${naturalLanguageQuery}
 SQL QUERY:`;
   }
 
+  // Pull the SQL out of the model's reply. Keeps multi-line queries (the original code kept
+  // only the first line, which truncated anything Gemini formatted over several lines).
   static extractSQL(text) {
-    text = text.trim();
-
-    text = text.replace(/```sql\n?/gi, '');
-    text = text.replace(/```\n?/g, '');
-
-    text = text.split('\n')[0].trim();
-
-    if (!text.toUpperCase().startsWith('SELECT')) {
-      const selectMatch = text.match(/SELECT[\s\S]*/i);
-      if (selectMatch) {
-        text = selectMatch[0];
-      }
-    }
-
-    text = text.replace(/;$/, '');
-
-    return text.trim();
+    let sql = String(text)
+      .replace(/```(?:sql)?/gi, '')
+      .trim();
+    const start = sql.search(/\b(with|select)\b/i);
+    if (start > 0) sql = sql.slice(start);
+    return sql.replace(/;\s*$/, '').trim();
   }
 }
 

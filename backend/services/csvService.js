@@ -1,197 +1,214 @@
 const fs = require('fs');
 const csv = require('csv-parser');
 const pool = require('../config/database');
+const { quoteIdent } = require('./workspaceService');
+
+const INT_RE = /^[-+]?\d+$/;
+const FLOAT_RE = /^[-+]?(\d+\.\d*|\.\d+|\d+)([eE][-+]?\d+)?$/;
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const US_DATE_RE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+const INT32_MAX = 2147483647;
+
+// Type ranks: a column takes the narrowest type that fits every non-empty value.
+const NUMERIC_TYPES = ['INTEGER', 'FLOAT'];
+
+function isValidDate(y, m, d) {
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
 
 class CSVService {
   // Parse CSV file and detect schema
   static async parseCSV(filePath) {
     return new Promise((resolve, reject) => {
       const rows = [];
-      const columns = new Map();
-      let rowCount = 0;
+      let headers = null;
 
       fs.createReadStream(filePath)
         .pipe(csv())
-        .on('data', (row) => {
-          rowCount++;
-
-          // Detect column types from first 100 rows
-          if (rowCount <= 100) {
-            Object.keys(row).forEach((columnName, index) => {
-              if (!columns.has(columnName)) {
-                columns.set(columnName, {
-                  name: columnName,
-                  index: index,
-                  type: 'TEXT',
-                  samples: [],
-                });
-              }
-
-              const value = row[columnName];
-              const col = columns.get(columnName);
-
-              // Store sample values
-              if (col.samples.length < 5) {
-                col.samples.push(value);
-              }
-
-              // Detect data type
-              if (value && value.trim() !== '') {
-                const detectedType = this.detectDataType(value);
-                if (detectedType !== 'TEXT') {
-                  col.type = detectedType;
-                }
-              }
-            });
-          }
-
-          rows.push(row);
+        .on('headers', (h) => {
+          headers = h;
         })
+        .on('data', (row) => rows.push(row))
         .on('end', () => {
-          resolve({
-            rows,
-            columns: Array.from(columns.values()),
-            rowCount,
-            columnCount: columns.size,
-          });
+          const columns = this.inferColumns(headers || [], rows);
+          resolve({ rows, columns, rowCount: rows.length, columnCount: columns.length });
         })
-        .on('error', (error) => {
-          reject(error);
-        });
+        .on('error', reject);
     });
   }
 
-  // Detect data type from value
+  // Detect the type of a single value: INTEGER, FLOAT, DATE or TEXT.
   static detectDataType(value) {
-    const trimmedValue = value.trim();
-
-    // Check for integer
-    if (/^-?\d+$/.test(trimmedValue)) {
-      return 'INTEGER';
-    }
-
-    // Check for float
-    if (/^-?\d+\.\d+$/.test(trimmedValue)) {
-      return 'FLOAT';
-    }
-
-    // Check for date
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue) || /^\d{2}\/\d{2}\/\d{4}$/.test(trimmedValue)) {
-      return 'DATE';
-    }
-
+    const v = value.trim();
+    if (INT_RE.test(v)) return 'INTEGER';
+    if (FLOAT_RE.test(v)) return 'FLOAT';
+    let m = v.match(ISO_DATE_RE);
+    if (m && isValidDate(+m[1], +m[2], +m[3])) return 'DATE';
+    m = v.match(US_DATE_RE);
+    if (m && isValidDate(+m[3], +m[1], +m[2])) return 'DATE';
     return 'TEXT';
   }
 
-  // Create dynamic table for CSV data
-  static async createDataTable(fileId, columns) {
-    const tableName = `csv_data_${fileId}`;
+  // Combine two value types into the narrowest column type that holds both.
+  static widenType(current, next) {
+    if (!current) return next;
+    if (current === next) return current;
+    if (NUMERIC_TYPES.includes(current) && NUMERIC_TYPES.includes(next)) return 'FLOAT';
+    return 'TEXT';
+  }
 
-    // Build CREATE TABLE statement
+  // Build column metadata from every row (not only the first 100), with unique SQL names.
+  static inferColumns(headers, rows) {
+    const used = new Set(['row_id']);
+    return headers.map((name, index) => {
+      let type = null;
+      let maxAbsInt = 0;
+      const samples = [];
+      for (const row of rows) {
+        const value = row[name];
+        if (samples.length < 5 && value !== undefined) samples.push(value);
+        if (value === undefined || value === null || value.trim() === '') continue;
+        const t = this.detectDataType(value);
+        type = this.widenType(type, t);
+        if (t === 'INTEGER') maxAbsInt = Math.max(maxAbsInt, Math.abs(Number(value)));
+        if (type === 'TEXT') break;
+      }
+      // Collect the remaining samples if the loop stopped early.
+      for (let i = samples.length; i < Math.min(5, rows.length); i++) samples.push(rows[i][name]);
+
+      let sqlName = this.sanitizeColumnName(name) || `column_${index + 1}`;
+      const base = sqlName;
+      for (let n = 2; used.has(sqlName); n++) sqlName = `${base.substring(0, 58)}_${n}`;
+      used.add(sqlName);
+
+      return {
+        name,
+        sqlName,
+        index,
+        type: type || 'TEXT',
+        big: type === 'INTEGER' && maxAbsInt > INT32_MAX,
+        samples,
+      };
+    });
+  }
+
+  static sqlType(col) {
+    switch (col.type) {
+      case 'INTEGER':
+        return col.big ? 'NUMERIC' : 'INTEGER';
+      case 'FLOAT':
+        return 'DOUBLE PRECISION';
+      case 'DATE':
+        return 'DATE';
+      default:
+        return 'TEXT';
+    }
+  }
+
+  // Convert one raw CSV value for insertion into a column of the inferred type.
+  static convertValue(raw, col) {
+    if (raw === undefined || raw === null) return null;
+    const v = String(raw).trim();
+    if (v === '') return null;
+    switch (col.type) {
+      case 'INTEGER':
+        return col.big ? v : parseInt(v, 10);
+      case 'FLOAT':
+        return parseFloat(v);
+      case 'DATE': {
+        const us = v.match(US_DATE_RE);
+        if (us) return `${us[3]}-${us[1].padStart(2, '0')}-${us[2].padStart(2, '0')}`;
+        return v;
+      }
+      default:
+        return raw;
+    }
+  }
+
+  // Create the table for a CSV inside its workspace schema.
+  static async createDataTable(schemaName, tableName, columns, db = pool) {
     const columnDefinitions = columns
-      .map((col) => {
-        const sanitizedName = this.sanitizeColumnName(col.name);
-        let sqlType = 'TEXT';
-
-        switch (col.type) {
-          case 'INTEGER':
-            sqlType = 'INTEGER';
-            break;
-          case 'FLOAT':
-            sqlType = 'NUMERIC';
-            break;
-          case 'DATE':
-            sqlType = 'DATE';
-            break;
-        }
-
-        return `"${sanitizedName}" ${sqlType}`;
-      })
+      .map((col) => `${quoteIdent(col.sqlName)} ${this.sqlType(col)}`)
       .join(', ');
-
-    const createTableSQL = `
-        CREATE TABLE IF NOT EXISTS "${tableName}" (
-            row_id SERIAL PRIMARY KEY,
-            ${columnDefinitions}
-    )
-`;
-
-    await pool.query(createTableSQL);
+    await db.query(
+      `CREATE TABLE ${quoteIdent(schemaName)}.${quoteIdent(tableName)} (
+         row_id SERIAL PRIMARY KEY${columnDefinitions ? ', ' + columnDefinitions : ''}
+       )`
+    );
     return tableName;
   }
 
-  // Insert CSV data into table
-  static async insertData(tableName, rows, columns) {
-    if (rows.length === 0) return;
-
-    const client = await pool.connect();
+  // Insert rows in batches. Pass a client to run inside the caller's transaction.
+  static async insertData(schemaName, tableName, rows, columns, db = null, batchSize = 500) {
+    if (rows.length === 0 || columns.length === 0) return;
+    const client = db || (await pool.connect());
+    const ownTransaction = !db;
+    const target = `${quoteIdent(schemaName)}.${quoteIdent(tableName)}`;
+    const columnNames = columns.map((c) => quoteIdent(c.sqlName)).join(', ');
+    // PostgreSQL allows at most 65535 bind parameters per statement.
+    const size = Math.max(1, Math.min(batchSize, Math.floor(65535 / columns.length)));
 
     try {
-      await client.query('BEGIN');
-
-      // Prepare column names
-      const columnNames = columns.map((col) => `"${this.sanitizeColumnName(col.name)}"`).join(', ');
-
-      // Insert in batches of 500 rows
-      const batchSize = 500;
-      for (let i = 0; i < rows.length; i += batchSize) {
-        const batch = rows.slice(i, i + batchSize);
-
+      if (ownTransaction) await client.query('BEGIN');
+      for (let i = 0; i < rows.length; i += size) {
+        const batch = rows.slice(i, i + size);
         const values = [];
-        const placeholders = [];
-
-        batch.forEach((row, batchIndex) => {
-          const rowPlaceholders = [];
-          columns.forEach((col, colIndex) => {
-            const paramIndex = batchIndex * columns.length + colIndex + 1;
-            rowPlaceholders.push(`$${paramIndex}`);
-
-            let value = row[col.name];
-
-            // Convert to appropriate type
-            if (col.type === 'INTEGER' && value) {
-              value = parseInt(value) || null;
-            } else if (col.type === 'FLOAT' && value) {
-              value = parseFloat(value) || null;
-            } else if (!value || value.trim() === '') {
-              value = null;
-            }
-
-            values.push(value);
+        const placeholders = batch.map((row, b) => {
+          const ph = columns.map((col, c) => {
+            values.push(this.convertValue(row[col.name], col));
+            return `$${b * columns.length + c + 1}`;
           });
-          placeholders.push(`(${rowPlaceholders.join(', ')})`);
+          return `(${ph.join(', ')})`;
         });
-
-        const insertSQL = `
-          INSERT INTO "${tableName}" (${columnNames})
-          VALUES ${placeholders.join(', ')}
-        `;
-
-        await client.query(insertSQL, values);
+        await client.query(
+          `INSERT INTO ${target} (${columnNames}) VALUES ${placeholders.join(', ')}`,
+          values
+        );
       }
-
-      await client.query('COMMIT');
+      if (ownTransaction) await client.query('COMMIT');
     } catch (error) {
-      await client.query('ROLLBACK');
+      if (ownTransaction) await client.query('ROLLBACK');
       throw error;
     } finally {
-      client.release();
+      if (ownTransaction) client.release();
     }
   }
 
   // Sanitize column name for SQL
   static sanitizeColumnName(name) {
-    return name
+    return String(name)
+      .replace(/^\uFEFF/, '')
+      .trim()
       .replace(/[^a-zA-Z0-9_]/g, '_')
       .replace(/^(\d)/, '_$1')
       .toLowerCase()
       .substring(0, 63);
   }
 
+  // Pick a readable table name from the file name, unique within the workspace.
+  static async uniqueTableName(workspaceSlug, originalFilename, db = pool) {
+    let base = this.sanitizeColumnName(String(originalFilename).replace(/\.csv$/i, ''))
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .substring(0, 50);
+    if (!base || base.startsWith('pg_')) base = `table_${base}`.replace(/_+$/, '');
+    const { rows } = await db.query(
+      'SELECT table_name FROM csv_files WHERE workspace_id = $1 AND table_name LIKE $2',
+      [workspaceSlug, `${base}%`]
+    );
+    const taken = new Set(rows.map((r) => r.table_name));
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base}_${n}`;
+    return name;
+  }
+
   // Get data preview
-  static async getPreview(tableName, limit = 100) {
-    const query = `SELECT * FROM "${tableName}" LIMIT $1`;
-    const result = await pool.query(query, [limit]);
+  static async getPreview(schemaName, tableName, limit = 100) {
+    const result = await pool.query(
+      `SELECT * FROM ${quoteIdent(schemaName)}.${quoteIdent(tableName)} ORDER BY row_id LIMIT $1`,
+      [limit]
+    );
     return result.rows;
   }
 }

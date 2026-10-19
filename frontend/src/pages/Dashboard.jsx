@@ -107,7 +107,7 @@ function Dashboard() {
               <div>
                 <p className="text-sm text-gray-600">Table Name</p>
                 <p className="text-sm font-mono text-gray-900 mt-1">
-                  {selectedFile.tableName || `csv_data_${selectedFile.id}`}
+                  {selectedFile.tableName || selectedFile.table_name}
                 </p>
               </div>
               <div>

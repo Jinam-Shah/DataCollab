@@ -1,19 +1,17 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 require('dotenv').config();
 
-// PostgreSQL connection pool
+// Return DATE columns as 'YYYY-MM-DD' strings instead of JS Dates shifted to local midnight.
+types.setTypeParser(1082, (value) => value);
+
+// Application pool. It owns the app tables and workspace schemas, so it must never run
+// user-written SQL. That goes through services/readonlyQuery.ts on the reader pool.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Test connection on startup
-pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
-});
-
 pool.on('error', (err) => {
   console.error('Unexpected database error:', err);
-  process.exit(-1);
 });
 
 module.exports = pool;

@@ -9,6 +9,8 @@ export const initSocket = () => {
     socket = io(SOCKET_URL, {
       transports: ['websocket'],
       autoConnect: false,
+      // The server only accepts sockets with a valid JWT and joins them to their workspace room.
+      auth: (cb) => cb({ token: localStorage.getItem('token') }),
     });
   }
   return socket;

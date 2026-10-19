@@ -1,31 +1,29 @@
-const SQLService = require('../services/sqlService');
 const pool = require('../config/database');
+const { ensureWorkspace } = require('../services/workspaceService');
+const { runReadonlyQuery } = require('../services/readonlyQuery');
+const { getFileForWorkspace } = require('../services/fileAccess');
 
-// Execute SQL query
+// Execute SQL query through the read-only safety layer.
 exports.executeQuery = async (req, res) => {
   try {
-    const { query, fileId } = req.body;
-
-    if (!query) {
-      return res.status(400).json({ error: 'Query is required' });
+    const { query, page, pageSize } = req.body;
+    if (!query || typeof query !== 'string') {
+      return res.status(400).json({ success: false, error: 'Query is required' });
     }
 
-    console.log(`Executing query: ${query.substring(0, 100)}...`);
-
-    // Execute the query
-    const result = await SQLService.executeQuery(query);
+    const workspace = await ensureWorkspace(req.workspaceId);
+    const result = await runReadonlyQuery(query, workspace, { page, pageSize });
 
     if (!result.success) {
       return res.status(400).json({
         success: false,
+        code: result.code,
         error: result.error,
         executionTime: result.executionTime,
       });
     }
 
-    // Broadcast query execution to all connected clients
-    const io = req.app.get('io');
-    io.emit('query:executed', {
+    req.app.get('broadcast')(workspace.slug, 'query:executed', {
       username: req.username,
       query: query.substring(0, 100),
       rowCount: result.rowCount,
@@ -38,39 +36,31 @@ exports.executeQuery = async (req, res) => {
       rowCount: result.rowCount,
       executionTime: result.executionTime,
       columns: result.columns,
+      page: result.page,
+      pageSize: result.pageSize,
+      hasMore: result.hasMore,
     });
   } catch (error) {
     console.error('Execute query error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Query execution failed',
-      details: error.message,
-    });
+    res.status(500).json({ success: false, error: 'Query execution failed' });
   }
 };
 
-// Get table schema
+// Get table schema (only for tables in the caller's workspace)
 exports.getTableSchema = async (req, res) => {
   try {
-    const { tableName } = req.params;
-
-    // Verify table exists
-    const checkQuery = `
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = $1
-      )
-    `;
-
-    const checkResult = await pool.query(checkQuery, [tableName]);
-
-    if (!checkResult.rows[0].exists) {
+    const workspace = await ensureWorkspace(req.workspaceId);
+    const result = await pool.query(
+      `SELECT column_name, data_type, is_nullable
+         FROM information_schema.columns
+        WHERE table_schema = $1 AND table_name = $2
+        ORDER BY ordinal_position`,
+      [workspace.schemaName, req.params.tableName]
+    );
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Table not found' });
     }
-
-    const schema = await SQLService.getTableSchema(tableName);
-
-    res.json({ schema });
+    res.json({ schema: result.rows });
   } catch (error) {
     console.error('Get schema error:', error);
     res.status(500).json({ error: 'Failed to get table schema' });
@@ -80,49 +70,26 @@ exports.getTableSchema = async (req, res) => {
 // Get sample queries for a file
 exports.getSampleQueries = async (req, res) => {
   try {
-    const { fileId } = req.params;
-
-    // Get file details
-    const fileQuery = `
-      SELECT f.*, 
-        (SELECT array_agg(column_name ORDER BY column_index) 
-         FROM csv_columns 
-         WHERE file_id = f.id) as columns
-      FROM csv_files f
-      WHERE f.id = $1
-    `;
-
-    const fileResult = await pool.query(fileQuery, [fileId]);
-
-    if (fileResult.rows.length === 0) {
+    const file = await getFileForWorkspace(req.params.fileId, req.workspaceId);
+    if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
-
-    const file = fileResult.rows[0];
-    const tableName = `csv_data_${fileId}`;
-    const columns = file.columns || [];
-
-    // Generate sample queries
+    const { rows } = await pool.query(
+      'SELECT column_name FROM csv_columns WHERE file_id = $1 ORDER BY column_index',
+      [file.id]
+    );
+    const tableName = file.table_name;
     const sampleQueries = [
-      {
-        title: 'View all data',
-        query: `SELECT * FROM "${tableName}" LIMIT 100`,
-      },
-      {
-        title: 'Count total rows',
-        query: `SELECT COUNT(*) as total_rows FROM "${tableName}"`,
-      },
+      { title: 'View all data', query: `SELECT * FROM "${tableName}" LIMIT 100` },
+      { title: 'Count total rows', query: `SELECT COUNT(*) as total_rows FROM "${tableName}"` },
     ];
-
-    // Add column-specific queries if columns exist
-    if (columns.length > 0) {
-      const firstCol = columns[0];
+    if (rows.length > 0) {
+      const firstCol = rows[0].column_name;
       sampleQueries.push({
         title: `Group by ${firstCol}`,
         query: `SELECT "${firstCol}", COUNT(*) as count FROM "${tableName}" GROUP BY "${firstCol}" ORDER BY count DESC LIMIT 10`,
       });
     }
-
     res.json({ sampleQueries });
   } catch (error) {
     console.error('Get sample queries error:', error);

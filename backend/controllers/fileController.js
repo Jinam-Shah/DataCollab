@@ -2,73 +2,58 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../config/database');
 const CSVService = require('../services/csvService');
+const { ensureWorkspace, bumpDataVersion, quoteIdent } = require('../services/workspaceService');
+const { getFileForWorkspace } = require('../services/fileAccess');
+
+function removeUpload(filePath) {
+  if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+}
 
 // Upload and process CSV file
 exports.uploadCSV = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  const { originalname, filename, size, path: filePath } = req.file;
+
+  const client = await pool.connect();
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    const { originalname, filename, size, path: filePath } = req.file;
-    const userId = req.userId;
-
-    console.log(`Processing file: ${originalname}`);
-
-    // Step 1: Parse CSV and detect schema
+    const workspace = await ensureWorkspace(req.workspaceId);
     const { rows, columns, rowCount, columnCount } = await CSVService.parseCSV(filePath);
 
     if (rows.length === 0) {
-      fs.unlinkSync(filePath);
+      removeUpload(filePath);
       return res.status(400).json({ error: 'CSV file is empty' });
     }
 
-    console.log(`Parsed ${rowCount} rows, ${columnCount} columns`);
-
-    // Step 2: Save file metadata to database
-    const fileQuery = `
-    INSERT INTO csv_files (user_id, original_filename, stored_filename, file_size, row_count, column_count, workspace_id)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING *
-    `;
-
-    const fileResult = await pool.query(fileQuery, [
-      userId,
-      originalname,
-      filename,
-      size,
-      rowCount,
-      columnCount,
-      req.workspaceId,
-    ]);
-
+    // Metadata, table and rows are written in one transaction, so a failed upload leaves nothing behind.
+    await client.query('BEGIN');
+    const tableName = await CSVService.uniqueTableName(workspace.slug, originalname, client);
+    const fileResult = await client.query(
+      `INSERT INTO csv_files (user_id, original_filename, stored_filename, file_size, row_count,
+                              column_count, workspace_id, table_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [req.userId, originalname, filename, size, rowCount, columnCount, workspace.slug, tableName]
+    );
     const fileRecord = fileResult.rows[0];
 
-    // Step 3: Save column metadata
     for (const col of columns) {
-      await pool.query(
+      await client.query(
         `INSERT INTO csv_columns (file_id, column_name, data_type, column_index, sample_values)
          VALUES ($1, $2, $3, $4, $5)`,
-        [fileRecord.id, col.name, col.type, col.index, col.samples]
+        [fileRecord.id, col.sqlName, col.type, col.index, col.samples]
       );
     }
 
-    // Step 4: Create dynamic table for this CSV
-    const tableName = await CSVService.createDataTable(fileRecord.id, columns);
+    await CSVService.createDataTable(workspace.schemaName, tableName, columns, client);
+    await CSVService.insertData(workspace.schemaName, tableName, rows, columns, client);
+    await bumpDataVersion(workspace.id, client);
+    await client.query('COMMIT');
 
-    console.log(`Created table: ${tableName}`);
+    const preview = await CSVService.getPreview(workspace.schemaName, tableName, 10);
 
-    // Step 5: Insert data into table
-    await CSVService.insertData(tableName, rows, columns);
-
-    console.log(`Inserted ${rows.length} rows into ${tableName}`);
-
-    // Step 6: Get preview data
-    const preview = await CSVService.getPreview(tableName, 10);
-
-    // Broadcast to all connected clients via Socket.io
-    const io = req.app.get('io');
-    io.emit('file:uploaded', {
+    req.app.get('broadcast')(workspace.slug, 'file:uploaded', {
       fileId: fileRecord.id,
       filename: originalname,
       username: req.username,
@@ -83,44 +68,33 @@ exports.uploadCSV = async (req, res) => {
         originalFilename: originalname,
         rowCount,
         columnCount,
-        columns: columns.map((c) => ({ name: c.name, type: c.type })),
+        columns: columns.map((c) => ({ name: c.sqlName, type: c.type })),
         tableName,
         preview,
       },
     });
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Upload error:', error);
-
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
-
+    removeUpload(filePath);
     res.status(500).json({ error: 'File upload failed', details: error.message });
+  } finally {
+    client.release();
   }
 };
 
 // Get all uploaded files
 exports.getFiles = async (req, res) => {
   try {
-    const workspaceId = req.workspaceId;
-
-    const query = `
-      SELECT 
-        f.id,
-        f.original_filename,
-        f.file_size,
-        f.row_count,
-        f.column_count,
-        f.uploaded_at,
-        u.username
-      FROM csv_files f
-      JOIN users u ON f.user_id = u.id
-      WHERE f.workspace_id = $1
-      ORDER BY f.uploaded_at DESC
-    `;
-
-    const result = await pool.query(query, [workspaceId]);
-
+    const result = await pool.query(
+      `SELECT f.id, f.original_filename, f.file_size, f.row_count, f.column_count,
+              f.uploaded_at, f.table_name, u.username
+         FROM csv_files f
+         JOIN users u ON f.user_id = u.id
+        WHERE f.workspace_id = $1
+        ORDER BY f.uploaded_at DESC`,
+      [req.workspaceId]
+    );
     res.json({ files: result.rows });
   } catch (error) {
     console.error('Get files error:', error);
@@ -131,37 +105,17 @@ exports.getFiles = async (req, res) => {
 // Get file details including columns
 exports.getFileDetails = async (req, res) => {
   try {
-    const fileId = req.params.id;
-
-    // Get file info
-    const fileQuery = `
-      SELECT f.*, u.username
-      FROM csv_files f
-      JOIN users u ON f.user_id = u.id
-      WHERE f.id = $1
-    `;
-
-    const fileResult = await pool.query(fileQuery, [fileId]);
-
-    if (fileResult.rows.length === 0) {
+    const file = await getFileForWorkspace(req.params.id, req.workspaceId);
+    if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    const file = fileResult.rows[0];
-
-    // Get columns
-    const columnsQuery = `
-      SELECT column_name, data_type, column_index, sample_values
-      FROM csv_columns
-      WHERE file_id = $1
-      ORDER BY column_index
-    `;
-
-    const columnsResult = await pool.query(columnsQuery, [fileId]);
-
-    // Get preview data
-    const tableName = `csv_data_${fileId}`;
-    const preview = await CSVService.getPreview(tableName, 10);
+    const columnsResult = await pool.query(
+      `SELECT column_name, data_type, column_index, sample_values
+         FROM csv_columns WHERE file_id = $1 ORDER BY column_index`,
+      [file.id]
+    );
+    const preview = await CSVService.getPreview(file.schema_name, file.table_name, 10);
 
     res.json({
       file: {
@@ -172,12 +126,9 @@ exports.getFileDetails = async (req, res) => {
         columnCount: file.column_count,
         uploadedAt: file.uploaded_at,
         username: file.username,
-        tableName,
-        columns: columnsResult.rows.map((col) => ({
-          name: col.column_name,
-          type: col.data_type,
-        })),
-        preview: preview,
+        tableName: file.table_name,
+        columns: columnsResult.rows.map((col) => ({ name: col.column_name, type: col.data_type })),
+        preview,
       },
     });
   } catch (error) {
@@ -188,45 +139,33 @@ exports.getFileDetails = async (req, res) => {
 
 // Delete file and its data
 exports.deleteFile = async (req, res) => {
+  const client = await pool.connect();
   try {
-    const fileId = req.params.id;
-    const userId = req.userId;
-
-    // Check if file exists and belongs to user
-    const checkQuery = `
-      SELECT * FROM csv_files WHERE id = $1
-    `;
-
-    const checkResult = await pool.query(checkQuery, [fileId]);
-
-    if (checkResult.rows.length === 0) {
-      return res.status(404).json({ error: 'File not found or unauthorized' });
+    const file = await getFileForWorkspace(req.params.id, req.workspaceId);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
     }
 
-    const file = checkResult.rows[0];
-    const tableName = `csv_data_${fileId}`;
+    await client.query('BEGIN');
+    await client.query(
+      `DROP TABLE IF EXISTS ${quoteIdent(file.schema_name)}.${quoteIdent(file.table_name)}`
+    );
+    await client.query('DELETE FROM csv_files WHERE id = $1', [file.id]);
+    await bumpDataVersion(file.ws_id, client);
+    await client.query('COMMIT');
 
-    // Drop data table
-    await pool.query(`DROP TABLE IF EXISTS "${tableName}"`);
+    removeUpload(path.join(__dirname, '../uploads', path.basename(file.stored_filename)));
 
-    // Delete file from filesystem
-    const filePath = path.join(__dirname, '../uploads', file.stored_filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    // Delete from database
-    await pool.query('DELETE FROM csv_files WHERE id = $1', [fileId]);
-
-    console.log(`Deleted file: ${file.original_filename}`);
-
-    // Broadcast deletion
-    const io = req.app.get('io');
-    io.emit('file:deleted', { fileId, filename: file.original_filename });
-
+    req.app.get('broadcast')(req.workspaceId, 'file:deleted', {
+      fileId: file.id,
+      filename: file.original_filename,
+    });
     res.json({ message: 'File deleted successfully' });
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Delete file error:', error);
     res.status(500).json({ error: 'Failed to delete file' });
+  } finally {
+    client.release();
   }
 };

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { ensureWorkspace } = require('../services/workspaceService');
 
-// Generate JWT token
 // Generate JWT token
 const generateToken = (userId, username, workspaceId) => {
   return jwt.sign({ userId, username, workspaceId }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -43,8 +43,15 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
-    // Create user with workspace
-    const finalWorkspaceId = workspaceId || 'default';
+    const finalWorkspaceId = (workspaceId || 'default').trim();
+    if (!/^[A-Za-z0-9_.-]{1,50}$/.test(finalWorkspaceId)) {
+      return res.status(400).json({
+        error: 'Workspace ID must be 1-50 letters, digits, dots, dashes or underscores',
+      });
+    }
+
+    // Create the workspace (schema + read-only role) on first use, then the user
+    await ensureWorkspace(finalWorkspaceId);
     const user = await User.create(username, email, password, finalWorkspaceId);
 
     // Generate token with workspace

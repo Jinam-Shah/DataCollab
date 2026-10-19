@@ -4,7 +4,7 @@ const pool = require('../config/database');
 exports.getMessages = async (req, res) => {
   try {
     const workspaceId = req.workspaceId;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = Math.min(200, parseInt(req.query.limit) || 50);
 
     const query = `
       SELECT 
@@ -12,10 +12,9 @@ exports.getMessages = async (req, res) => {
         cm.message,
         cm.sent_at,
         cm.username,
-        u.workspace_id
+        cm.workspace_id
       FROM chat_messages cm
-      JOIN users u ON cm.user_id = u.id
-      WHERE u.workspace_id = $1
+      WHERE cm.workspace_id = $1
       ORDER BY cm.sent_at DESC
       LIMIT $2
     `;
@@ -43,16 +42,15 @@ exports.sendMessage = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO chat_messages (user_id, username, message)
-      VALUES ($1, $2, $3)
+      INSERT INTO chat_messages (user_id, username, message, workspace_id)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
 
-    const result = await pool.query(query, [userId, username, message.trim()]);
+    const result = await pool.query(query, [userId, username, message.trim(), req.workspaceId]);
     const newMessage = result.rows[0];
 
-    const io = req.app.get('io');
-    io.emit('chat:message', {
+    req.app.get('broadcast')(req.workspaceId, 'chat:message', {
       id: newMessage.id,
       username: newMessage.username,
       message: newMessage.message,

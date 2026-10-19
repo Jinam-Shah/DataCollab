@@ -4,13 +4,15 @@ import api from '../../services/api';
 import TextToSQL from '../AIQuery/TextToSQL';
 import ChartBuilder from '../Visualizations/ChartBuilder';
 
+const PAGE_SIZE = 100;
+
 function QueryEditor({ selectedFile }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleRunQuery = async () => {
+  const handleRunQuery = async (page = 1) => {
     if (!query.trim()) {
       setError('Please enter a query');
       return;
@@ -22,7 +24,8 @@ function QueryEditor({ selectedFile }) {
     try {
       const response = await api.post('/api/queries/execute', {
         query: query,
-        fileId: selectedFile?.id,
+        page,
+        pageSize: PAGE_SIZE,
       });
 
       if (response.data.success) {
@@ -48,7 +51,7 @@ function QueryEditor({ selectedFile }) {
   const getSampleQueries = () => {
     if (!selectedFile) return [];
 
-    const tableName = selectedFile.tableName || `csv_data_${selectedFile.id}`;
+    const tableName = selectedFile.tableName || selectedFile.table_name;
 
     return [
       {
@@ -74,7 +77,7 @@ function QueryEditor({ selectedFile }) {
           <span className="text-sm text-gray-600">
             Table:{' '}
             <span className="font-mono text-blue-600">
-              {selectedFile.tableName || `csv_data_${selectedFile.id}`}
+              {selectedFile.tableName || selectedFile.table_name}
             </span>
           </span>
         )}
@@ -126,7 +129,7 @@ function QueryEditor({ selectedFile }) {
             </div>
           </div>
           <button
-            onClick={handleRunQuery}
+            onClick={() => handleRunQuery(1)}
             disabled={loading || !query.trim()}
             className="w-full bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
           >
@@ -140,8 +143,27 @@ function QueryEditor({ selectedFile }) {
           {results && results.success && (
             <div className="mt-6">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium text-gray-900">Results ({results.rowCount} rows)</h3>
-                <span className="text-sm text-gray-600">Executed in {results.executionTime}ms</span>
+                <h3 className="font-medium text-gray-900">
+                  Results ({results.rowCount} rows{results.hasMore ? ', more available' : ''})
+                </h3>
+                <div className="flex items-center gap-3 text-sm text-gray-600">
+                  <span>Executed in {results.executionTime}ms</span>
+                  <button
+                    onClick={() => handleRunQuery(results.page - 1)}
+                    disabled={loading || results.page <= 1}
+                    className="px-2 py-1 border rounded disabled:opacity-40"
+                  >
+                    Prev
+                  </button>
+                  <span>Page {results.page}</span>
+                  <button
+                    onClick={() => handleRunQuery(results.page + 1)}
+                    disabled={loading || !results.hasMore}
+                    className="px-2 py-1 border rounded disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
 
               {results.data.length === 0 ? (

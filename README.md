@@ -225,6 +225,7 @@ cp .env.example .env
 ```env
 PORT=5000
 DATABASE_URL=postgresql://username:password@localhost:5432/datacollab
+DATABASE_READER_URL=postgresql://datacollab_reader:another_password@localhost:5432/datacollab
 JWT_SECRET=your_super_secret_key_here
 GEMINI_API_KEY=your_gemini_api_key_here
 NODE_ENV=development
@@ -347,13 +348,14 @@ Frontend runs on `http://localhost:3000`
 
 ## 🔒 Security Features
 
-- **Password Hashing**: bcrypt with 10 salt rounds
-- **JWT Tokens**: 7-day expiration with secure signing
-- **SQL Injection Prevention**: All queries use parameterized statements
-- **Query Validation**: Blocks dangerous operations (DROP, DELETE, ALTER on system tables)
-- **Workspace Isolation**: Users only access data within their workspace
-- **CORS Configuration**: Restricted origins in production
-- **Environment Variables**: Sensitive data stored securely
+User and AI-generated SQL runs through a layered safety path. Details and limits: [docs/SECURITY.md](docs/SECURITY.md).
+
+- **Per-workspace schemas** (`ws_<id>`) for uploaded tables
+- **Read-only role** with SELECT only on one workspace, a 5 s statement timeout and read-only transactions
+- **Single-statement check** with PostgreSQL's own parser (`libpg-query`), plus the keyword denylist as a second layer
+- **Row cap** of 1000 rows per page with pagination
+- **Workspace checks** on every file endpoint and authenticated, per-workspace Socket.io rooms
+- **Password hashing** with bcrypt, **JWT** with 7-day expiry
 
 ---
 
