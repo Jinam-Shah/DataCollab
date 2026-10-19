@@ -115,18 +115,21 @@ code("""def compare(a, b):
     return {'A': a, 'B': b, 'acc_A': f'{ca.mean():.1%}', 'acc_B': f'{cb.mean():.1%}',
             'only_A_correct': table[0][1], 'only_B_correct': table[1][0], 'p_value': round(res.pvalue, 3)}
 
-pairs = [('single_shot-profiles_off', 'agent-A-profiles_off'),
-         ('agent-A-profiles_off', 'agent-A-profiles_on'),
-         ('agent-A-profiles_on', 'agent-B-profiles_on'),
-         ('single_shot-profiles_off', 'agent-B-profiles_on')]
+base_pairs = [('single_shot-profiles_off', 'agent-A-profiles_off'),
+              ('agent-A-profiles_off', 'agent-A-profiles_on'),
+              ('agent-A-profiles_on', 'agent-B-profiles_on'),
+              ('single_shot-profiles_off', 'agent-B-profiles_on')]
+# The same comparisons for each model: local qwen2.5-coder runs have no prefix, Gemini runs 'gemini-'.
+pairs = [(p + a, p + b) for p in ['', 'gemini-'] for a, b in base_pairs]
 pd.DataFrame([compare(a, b) for a, b in pairs if a in reports and b in reports])"""),
 md("""## Caveats
 
 - The 40 questions are a fixed development set used while building the agent. Scores show
   differences on this set, not expected accuracy on new questions.
-- These runs used a local 7B model (`qwen2.5-coder:7b` through Ollama) because no Gemini key was
-  available in the build environment. Rerun with `LLM_PROVIDER=gemini` for Gemini numbers.
-- Latency includes CPU-only local inference on a 4-vCPU machine and is not comparable to a hosted API."""),
+- Two models were evaluated: a local 7B model (`qwen2.5-coder:7b` through Ollama, CPU only) and
+  Gemini (`gemini-3.5-flash-lite`, free tier, runs labelled `gemini-`).
+- Local-model latency is CPU-only inference on a 4-vCPU machine; Gemini latency includes network
+  time and the eval's pacing is excluded. The two are not comparable."""),
 ]
 nb.metadata['kernelspec'] = {'name': 'python3', 'display_name': 'Python 3', 'language': 'python'}
 nbf.write(nb, 'agent_runs.ipynb')

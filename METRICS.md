@@ -25,19 +25,29 @@ Every number here was measured, not estimated. Each row lists the date, the envi
 | 2026-10-19 | Retry effectiveness (all eval agent runs) | SQL error rate: attempt 1 3.6% (168 runs); attempt 2 37.5% (8); attempts 3 and 4 100% (3 each) | same | `analysis/agent_runs.ipynb`, section 3 |
 | 2026-10-19 | Query latency without cache (aggregate over 100,000 rows, 10 connections, 20 s) | p50 89.9 ms, p95 126.6 ms, p99 146.9 ms; 108 req/s; 2,157 requests, 0 errors | Same container, quiet CPU; API `node dist/server.js` with `QUERY_CACHE_TTL_SECONDS=0`; PostgreSQL 16 and Redis 7 local | `node scripts/bench_cache.js cache_off sales_100000.csv http://localhost:5300 20 10` (autocannon) |
 | 2026-10-19 | Query latency with Redis cache (same query and load) | p50 9.4 ms, p95 15.5 ms, p99 20.7 ms; 997 req/s; 19,935 requests, 0 errors | Same, `QUERY_CACHE_TTL_SECONDS=300`, `REDIS_URL=redis://localhost:6379` | `node scripts/bench_cache.js cache_on sales_100000.csv http://localhost:5300 20 10` |
+| 2026-10-19 | Eval: Gemini single-shot baseline (40 questions) | 37/40 (92.5%); hard 10/13 (76.9%); median 0.6 s/question | `gemini-3.5-flash-lite`, Gemini API free tier (15 requests/min measured), same container and demo dataset | `LLM_PROVIDER=gemini GEMINI_MODEL=gemini-3.5-flash-lite EVAL_DELAY_MS=8000 npm run eval -- --mode single_shot --profiles off --label gemini-single_shot-profiles_off` |
+| 2026-10-19 | Eval: Gemini agent, prompt A, no column profiles | **38/40 (95.0%)**; hard 11/13 (84.6%); median 1.1 s; mean 1.02 attempts | same | `... npm run eval -- --mode agent --variant A --profiles off --label gemini-agent-A-profiles_off` |
+| 2026-10-19 | Eval: Gemini agent, prompt A, with column profiles | 36/40 (90.0%); hard 9/13 (69.2%); median 1.2 s | same | `... --mode agent --variant A --profiles on --label gemini-agent-A-profiles_on` |
+| 2026-10-19 | Eval: Gemini agent, prompt B, with column profiles | 36/40 (90.0%); hard 9/13 (69.2%); median 1.3 s | same | `... --mode agent --variant B --profiles on --label gemini-agent-B-profiles_on` |
+| 2026-10-19 | McNemar exact test, Gemini runs | single-shot vs agent A: 1 vs 2 discordant, p = 1.000; profiles off vs on: 2 vs 0, p = 0.500; prompt A vs B: 1 vs 1, p = 1.000. None significant | same | `analysis/agent_runs.ipynb`, section 4 |
+| 2026-10-19 | Gemini free-tier rate limits (measured with a new key) | `gemini-3.8-flash`: 5 requests/min; `gemini-3.5-flash-lite`: 15 requests/min (`GenerateRequestsPerMinutePerProjectPerModel-FreeTier`) | Gemini API | burst of `generateContent` calls until HTTP 429, reading the quota violation |
 
 ## Notes on the evaluation numbers
 
-- **Model.** No Gemini API key was available in the build environment, so every eval number above
-  comes from a free local model (`qwen2.5-coder:7b` on CPU). Run `npm run eval` with
-  `LLM_PROVIDER=gemini` and a key to get Gemini numbers; do not quote these as Gemini results.
+- **Models.** Two models were evaluated on the same questions: a free local model
+  (`qwen2.5-coder:7b` on CPU) and Gemini (`gemini-3.5-flash-lite`, free tier). Quote each number
+  with its model. `gemini-2.5-flash` is no longer offered to new API keys, and `gemini-3.8-flash`
+  allows only 5 requests/min on the free tier, so `gemini-3.5-flash-lite` was used.
 - **Development set.** The 40 questions were written while building the agent. The scores show
   differences on this set, not expected accuracy on unseen questions. No held-out SQL set has been run yet.
 - **Significance.** With 40 paired questions, the 1–3 question differences between configurations
-  are not statistically significant (McNemar p ≥ 0.625). The honest summary: the agent and column
-  profiles look slightly better than single-shot on the hard questions (38.5% → 53.8%), and the
-  longer prompt B did not help, so prompt A is the default.
-- **Failure analysis** (`analysis/agent_runs.ipynb`): six questions fail in every configuration.
+  are not statistically significant for either model (McNemar p ≥ 0.5). The honest summary: the
+  model matters far more than the configuration (local 7B 77.5–82.5%, Gemini 90–95%); the agent
+  with prompt A was the best or joint-best setup for both; column profiles helped the 7B model by
+  one question and cost Gemini two; prompt B never helped, so prompt A is the default.
+- **Failure analysis** (`analysis/agent_runs.ipynb`): across all eight runs only h13 ("How many
+  people died in Texas in 2016?") fails every time: every model sums all causes instead of using
+  the "All causes" row. For the local model alone, six questions fail in every configuration.
   Two are traps the demo data dictionary documents ("All causes" double counting, lowercase
   network codes), two read "increase between 1999 and 2017" as a sum over years, one invents a
   `region` column instead of joining, and one answers "how many died" with population numbers.
