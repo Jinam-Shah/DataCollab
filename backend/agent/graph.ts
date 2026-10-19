@@ -56,6 +56,8 @@ export interface AgentOptions {
   promptVariant?: PromptVariant;
   maxRetries?: number;
   schemaOptions?: SchemaOptions;
+  // Skip the summarize_result LLM call (the eval only scores the SQL result).
+  summarize?: boolean;
   onStep?: (step: AgentStep) => void | Promise<void>;
 }
 
@@ -332,6 +334,11 @@ export function buildAgentGraph(opts: AgentOptions) {
     const started = Date.now();
     const result = state.lastResult;
     const sql = state.attempts[state.attempts.length - 1].sql;
+    if (opts.summarize === false && result && result.ok) {
+      const text = `${result.rowCount} row(s)`;
+      await emit({ type: 'answer', message: text, latencyMs: 0 });
+      return { finalAnswer: text, status: 'answered' as const };
+    }
     if (!result || !result.ok || result.rowCount === 0) {
       const text = 'No matching rows were found.';
       await emit({ type: 'answer', message: text, latencyMs: Date.now() - started });

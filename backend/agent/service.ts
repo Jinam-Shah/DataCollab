@@ -14,6 +14,7 @@ export interface AskOptions {
   promptVariant?: PromptVariant;
   schemaOptions?: SchemaOptions;
   maxRetries?: number;
+  summarize?: boolean;
   source?: 'app' | 'eval' | 'mcp';
   evalRun?: string | null;
   modelInfo?: ModelInfo;
@@ -60,6 +61,7 @@ export async function ask(
           ...common,
           promptVariant: promptVariant as PromptVariant,
           maxRetries: opts.maxRetries,
+          summarize: opts.summarize,
         })
       : await runSingleShot(opts.question, common);
   const latencyMs = Date.now() - started;

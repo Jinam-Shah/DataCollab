@@ -14,7 +14,10 @@
     "format:check": "prettier --check .",
     "test": "jest --runInBand",
     "worker": "tsx watch worker.js",
-    "start:worker": "node dist/worker.js"
+    "start:worker": "node dist/worker.js",
+    "seed:demo": "tsx scripts/seed_demo.ts",
+    "fetch:demo-data": "node scripts/fetch_demo_data.js",
+    "eval": "tsx eval/run.ts"
   },
   "keywords": [],
   "author": "",

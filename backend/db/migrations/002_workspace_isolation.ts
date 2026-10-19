@@ -10,7 +10,7 @@ import {
   ensureWorkspace,
   provisionWorkspace,
   quoteIdent,
-  readerLoginRole,
+  syncReaderRole,
   type Workspace,
 } from '../../services/workspaceService';
 
@@ -35,7 +35,7 @@ export async function up(client: PoolClient): Promise<void> {
     'CREATE INDEX IF NOT EXISTS idx_chat_messages_workspace ON chat_messages(workspace_id, sent_at DESC)'
   );
 
-  await createReaderRole(client);
+  await syncReaderRole(client);
 
   const slugs = await client.query<{ slug: string }>(`
     SELECT workspace_id AS slug FROM users WHERE workspace_id IS NOT NULL
@@ -70,29 +70,4 @@ export async function up(client: PoolClient): Promise<void> {
   await client.query(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_csv_files_ws_table ON csv_files(workspace_id, table_name)'
   );
-}
-
-async function createReaderRole(client: PoolClient): Promise<void> {
-  const url = process.env.DATABASE_READER_URL;
-  if (!url) {
-    throw new Error(
-      'DATABASE_READER_URL is not set. It is the login for the read-only query role, e.g. ' +
-        'postgresql://datacollab_reader:<password>@localhost:5432/datacollab'
-    );
-  }
-  const role = readerLoginRole();
-  const password = decodeURIComponent(new URL(url).password);
-  const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [role]);
-  const verb = exists.rowCount ? 'ALTER' : 'CREATE';
-  const { rows } = await client.query<{ sql: string }>(
-    `SELECT format('${verb} ROLE %I WITH LOGIN NOINHERIT NOCREATEDB NOCREATEROLE PASSWORD %L', $1::text, $2::text) AS sql`,
-    [role, password]
-  );
-  await client.query(rows[0].sql);
-
-  const r = quoteIdent(role);
-  await client.query(`ALTER ROLE ${r} SET statement_timeout = '5s'`);
-  await client.query(`ALTER ROLE ${r} SET default_transaction_read_only = on`);
-  await client.query(`ALTER ROLE ${r} SET idle_in_transaction_session_timeout = '10s'`);
-  await client.query(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${r}`);
 }

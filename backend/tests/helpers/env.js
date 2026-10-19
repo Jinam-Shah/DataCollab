@@ -5,7 +5,8 @@ const base =
 const readerPassword = process.env.TEST_READER_PASSWORD || 'reader_test_pw';
 const url = new URL(base);
 const reader = new URL(base);
-reader.username = 'datacollab_reader';
+// Roles are shared by every database on the server, so tests use their own reader login.
+reader.username = 'datacollab_test_reader';
 reader.password = readerPassword;
 
 process.env.NODE_ENV = 'test';

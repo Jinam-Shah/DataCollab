@@ -46,6 +46,36 @@ export function readerLoginRole(): string {
   return decodeURIComponent(new URL(url).username) || 'datacollab_reader';
 }
 
+/**
+ * Create or update the read-only login role from DATABASE_READER_URL: NOINHERIT (no privileges
+ * of its own), 5 s statement timeout, read-only transactions by default. Runs on every migrate,
+ * so changing the password in the environment and re-running `npm run migrate` rotates it.
+ */
+export async function syncReaderRole(db: Queryable): Promise<void> {
+  const url = process.env.DATABASE_READER_URL;
+  if (!url) {
+    throw new Error(
+      'DATABASE_READER_URL is not set. It is the login for the read-only query role, e.g. ' +
+        'postgresql://datacollab_reader:<password>@localhost:5432/datacollab'
+    );
+  }
+  const role = readerLoginRole();
+  const password = decodeURIComponent(new URL(url).password);
+  const exists = await db.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [role]);
+  const verb = exists.rowCount ? 'ALTER' : 'CREATE';
+  const { rows } = await db.query<{ sql: string }>(
+    `SELECT format('${verb} ROLE %I WITH LOGIN NOINHERIT NOCREATEDB NOCREATEROLE PASSWORD %L', $1::text, $2::text) AS sql`,
+    [role, password]
+  );
+  await db.query(rows[0].sql);
+
+  const r = quoteIdent(role);
+  await db.query(`ALTER ROLE ${r} SET statement_timeout = '5s'`);
+  await db.query(`ALTER ROLE ${r} SET default_transaction_read_only = on`);
+  await db.query(`ALTER ROLE ${r} SET idle_in_transaction_session_timeout = '10s'`);
+  await db.query(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${r}`);
+}
+
 /** Create the schema, role and grants for a workspace. Idempotent. */
 export async function provisionWorkspace(db: Queryable, ws: Workspace): Promise<void> {
   const schema = quoteIdent(ws.schemaName);

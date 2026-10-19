@@ -5,9 +5,13 @@ const INT_RE = /^[-+]?\d+$/;
 const FLOAT_RE = /^[-+]?(\d+\.\d*|\.\d+|\d+)([eE][-+]?\d+)?$/;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const US_DATE_RE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+// ISO 8601 date-time, e.g. 2024-01-01T00:37:09.096Z or 2024-01-01 08:00:00+02:00
+const ISO_TIMESTAMP_RE =
+  /^(\d{4})-(\d{2})-(\d{2})[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}(:?\d{2})?)?$/;
 
 // Type ranks: a column takes the narrowest type that fits every non-empty value.
 const NUMERIC_TYPES = ['INTEGER', 'FLOAT'];
+const TIME_TYPES = ['DATE', 'TIMESTAMP'];
 
 function isValidDate(y, m, d) {
   const date = new Date(Date.UTC(y, m - 1, d));
@@ -15,7 +19,7 @@ function isValidDate(y, m, d) {
 }
 
 class CSVService {
-  // Detect the type of a single value: INTEGER, FLOAT, DATE or TEXT.
+  // Detect the type of a single value: INTEGER, FLOAT, DATE, TIMESTAMP or TEXT.
   static detectDataType(value) {
     const v = value.trim();
     if (INT_RE.test(v)) return 'INTEGER';
@@ -24,6 +28,8 @@ class CSVService {
     if (m && isValidDate(+m[1], +m[2], +m[3])) return 'DATE';
     m = v.match(US_DATE_RE);
     if (m && isValidDate(+m[3], +m[1], +m[2])) return 'DATE';
+    m = v.match(ISO_TIMESTAMP_RE);
+    if (m && isValidDate(+m[1], +m[2], +m[3]) && !Number.isNaN(Date.parse(v))) return 'TIMESTAMP';
     return 'TEXT';
   }
 
@@ -32,6 +38,7 @@ class CSVService {
     if (!current) return next;
     if (current === next) return current;
     if (NUMERIC_TYPES.includes(current) && NUMERIC_TYPES.includes(next)) return 'FLOAT';
+    if (TIME_TYPES.includes(current) && TIME_TYPES.includes(next)) return 'TIMESTAMP';
     return 'TEXT';
   }
 
@@ -43,6 +50,8 @@ class CSVService {
         return 'DOUBLE PRECISION';
       case 'DATE':
         return 'DATE';
+      case 'TIMESTAMP':
+        return 'TIMESTAMPTZ';
       default:
         return 'TEXT';
     }

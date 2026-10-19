@@ -105,7 +105,7 @@ describe('timeouts and row caps', () => {
 
   it('configures the reader role with a 5 s timeout and read-only default', async () => {
     const { rows } = await pool.query(
-      "SELECT rolconfig, rolinherit FROM pg_roles WHERE rolname = 'datacollab_reader'"
+      "SELECT rolconfig, rolinherit FROM pg_roles WHERE rolname = 'datacollab_test_reader'"
     );
     expect(rows[0].rolconfig).toEqual(
       expect.arrayContaining(['statement_timeout=5s', 'default_transaction_read_only=on'])

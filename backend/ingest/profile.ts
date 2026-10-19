@@ -6,7 +6,7 @@ import crypto from 'crypto';
 const csv = require('csv-parser');
 const CSVService = require('../services/csvService');
 
-export type ValueType = 'INTEGER' | 'FLOAT' | 'DATE' | 'TEXT';
+export type ValueType = 'INTEGER' | 'FLOAT' | 'DATE' | 'TIMESTAMP' | 'TEXT';
 
 export interface ProfiledColumn {
   name: string; // header as written in the file
@@ -85,7 +85,7 @@ export async function profileCsv(filePath: string): Promise<Profile> {
       accs = h.map(() => ({
         type: null,
         empty: 0,
-        counts: { INTEGER: 0, FLOAT: 0, DATE: 0, TEXT: 0 },
+        counts: { INTEGER: 0, FLOAT: 0, DATE: 0, TIMESTAMP: 0, TEXT: 0 },
         maxAbsInt: 0,
         numMin: Infinity,
         numMax: -Infinity,
@@ -127,8 +127,8 @@ export async function profileCsv(filePath: string): Promise<Profile> {
         if (t === 'INTEGER') acc.maxAbsInt = Math.max(acc.maxAbsInt, Math.abs(n));
         if (n < acc.numMin) acc.numMin = n;
         if (n > acc.numMax) acc.numMax = n;
-      } else if (t === 'DATE') {
-        const iso = CSVService.convertValue(v, { type: 'DATE' });
+      } else if (t === 'DATE' || t === 'TIMESTAMP') {
+        const iso = t === 'DATE' ? CSVService.convertValue(v, { type: 'DATE' }) : new Date(v).toISOString();
         if (acc.strMin === null || iso < acc.strMin) acc.strMin = iso;
         if (acc.strMax === null || iso > acc.strMax) acc.strMax = iso;
       }
@@ -158,10 +158,12 @@ export async function profileCsv(filePath: string): Promise<Profile> {
     const acc = accs[i];
     const numeric = acc.counts.INTEGER + acc.counts.FLOAT;
     // "Mixed" means values of different kinds (number, date, text), not ints mixed with floats.
-    const kinds = [numeric, acc.counts.DATE, acc.counts.TEXT].filter((n) => n > 0).length;
+    const dates = acc.counts.DATE + acc.counts.TIMESTAMP;
+    const kinds = [numeric, dates, acc.counts.TEXT].filter((n) => n > 0).length;
     const mixedTypes = kinds > 1;
     const emptyPct = pct(acc.empty, rowCount);
     const isNumeric = col.type === 'INTEGER' || col.type === 'FLOAT';
+    const isTime = col.type === 'DATE' || col.type === 'TIMESTAMP';
 
     if (rowCount > 0 && acc.empty === rowCount) {
       warnings.push({
@@ -180,7 +182,7 @@ export async function profileCsv(filePath: string): Promise<Profile> {
       const filled = rowCount - acc.empty;
       const parts = [
         numeric && `${pct(numeric, filled)}% numbers`,
-        acc.counts.DATE && `${pct(acc.counts.DATE, filled)}% dates`,
+        dates && `${pct(dates, filled)}% dates`,
         acc.counts.TEXT && `${pct(acc.counts.TEXT, filled)}% text`,
       ].filter(Boolean);
       warnings.push({
@@ -199,14 +201,8 @@ export async function profileCsv(filePath: string): Promise<Profile> {
       typeCounts: acc.counts,
       mixedTypes,
       distinctSampled: acc.distinct.size,
-      min:
-        isNumeric && acc.numMin !== Infinity ? acc.numMin : col.type === 'DATE' ? acc.strMin : null,
-      max:
-        isNumeric && acc.numMax !== -Infinity
-          ? acc.numMax
-          : col.type === 'DATE'
-            ? acc.strMax
-            : null,
+      min: isNumeric && acc.numMin !== Infinity ? acc.numMin : isTime ? acc.strMin : null,
+      max: isNumeric && acc.numMax !== -Infinity ? acc.numMax : isTime ? acc.strMax : null,
     };
   });
 

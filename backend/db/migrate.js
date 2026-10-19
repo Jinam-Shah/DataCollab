@@ -49,6 +49,11 @@ async function migrate({ connectionString = process.env.DATABASE_URL, log = cons
         throw new Error(`Migration ${base} failed: ${err.message}`, { cause: err });
       }
     }
+    // Keep the read-only role's password and settings in step with DATABASE_READER_URL.
+    if (process.env.DATABASE_READER_URL && applied.size + seen.size > 0) {
+      const { syncReaderRole } = require('../services/workspaceService');
+      await syncReaderRole(client);
+    }
   } finally {
     await client.query('SELECT pg_advisory_unlock(727274)').catch(() => {});
     client.release();
