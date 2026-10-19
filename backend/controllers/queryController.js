@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 const { ensureWorkspace } = require('../services/workspaceService');
-const { runReadonlyQuery } = require('../services/readonlyQuery');
+const { runCachedQuery } = require('../cache/queryCache');
 const { getFileForWorkspace } = require('../services/fileAccess');
 
 // Execute SQL query through the read-only safety layer.
@@ -12,7 +12,7 @@ exports.executeQuery = async (req, res) => {
     }
 
     const workspace = await ensureWorkspace(req.workspaceId);
-    const result = await runReadonlyQuery(query, workspace, { page, pageSize });
+    const result = await runCachedQuery(query, workspace, { page, pageSize });
 
     if (!result.success) {
       return res.status(400).json({
@@ -39,6 +39,7 @@ exports.executeQuery = async (req, res) => {
       page: result.page,
       pageSize: result.pageSize,
       hasMore: result.hasMore,
+      cached: result.cached,
     });
   } catch (error) {
     console.error('Execute query error:', error);

@@ -3,7 +3,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Workspace } from '../services/workspaceService';
-import { runReadonlyQuery } from '../services/readonlyQuery';
+import { runCachedQuery } from '../cache/queryCache';
 import { getWorkspaceSchema, listTables, schemaToText } from '../agent/schema';
 import { searchDocuments } from '../rag/store';
 
@@ -68,7 +68,7 @@ export function createMcpServer(workspace: Workspace): McpServer {
       annotations: { readOnlyHint: true },
     },
     async ({ sql, page, pageSize }) => {
-      const result = await runReadonlyQuery(sql, workspace, { page, pageSize: pageSize ?? 100 });
+      const result = await runCachedQuery(sql, workspace, { page, pageSize: pageSize ?? 100 });
       if (!result.success) return failure(`${result.code}: ${result.error}`);
       return json({
         columns: result.columns,

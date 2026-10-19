@@ -3,5 +3,6 @@ afterAll(async () => {
   const pool = require('../../config/database');
   const { closeReaderPool } = require('../../services/readonlyQuery');
   await closeReaderPool();
+  await require('../../cache/store').closeStore();
   await pool.end();
 });

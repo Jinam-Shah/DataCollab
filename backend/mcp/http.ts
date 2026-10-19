@@ -13,13 +13,11 @@ mcpRouter.post('/', async (req, res) => {
   const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
   const resolved = await resolveToken(token);
   if (!resolved) {
-    res
-      .status(401)
-      .json({
-        jsonrpc: '2.0',
-        error: { code: -32001, message: 'Invalid or missing API token' },
-        id: null,
-      });
+    res.status(401).json({
+      jsonrpc: '2.0',
+      error: { code: -32001, message: 'Invalid or missing API token' },
+      id: null,
+    });
     return;
   }
   try {
