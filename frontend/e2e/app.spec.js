@@ -60,7 +60,9 @@ test('blocks writes from the SQL editor', async ({ page }) => {
   const editor = page.locator('.monaco-editor .view-lines').first();
   await expect(editor).toBeVisible();
   await editor.click();
-  await page.keyboard.type('DELETE FROM sales');
+  // insertText adds the text in one input event; typing key by key can race with Monaco's
+  // suggestion widget on slow CI machines and lose or reorder characters.
+  await page.keyboard.insertText('DELETE FROM sales');
   await expect(editor).toContainText('DELETE FROM sales');
   await page.getByRole('button', { name: 'Run Query' }).click();
   await expect(page.getByText(/Only SELECT queries are allowed/)).toBeVisible();
