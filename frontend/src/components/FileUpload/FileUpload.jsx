@@ -1,11 +1,41 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { getSocket } from '../../services/socket';
 
 function FileUpload({ onUploadSuccess }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  // Set while a large file is being loaded by the background worker.
+  const [job, setJob] = useState(null);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !job) return undefined;
+    const onProgress = (p) => {
+      if (p.fileId === job.fileId) setJob((j) => ({ ...j, ...p }));
+    };
+    const onReady = async (e) => {
+      if (e.fileId !== job.fileId) return;
+      setJob(null);
+      const response = await api.get(`/api/files/${e.fileId}`);
+      if (onUploadSuccess) onUploadSuccess(response.data.file);
+    };
+    const onFailed = (e) => {
+      if (e.fileId !== job.fileId) return;
+      setJob(null);
+      setError(`Processing failed: ${e.error}`);
+    };
+    socket.on('file:progress', onProgress);
+    socket.on('file:ready', onReady);
+    socket.on('file:failed', onFailed);
+    return () => {
+      socket.off('file:progress', onProgress);
+      socket.off('file:ready', onReady);
+      socket.off('file:failed', onFailed);
+    };
+  }, [job, onUploadSuccess]);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -64,9 +94,9 @@ function FileUpload({ onUploadSuccess }) {
         },
       });
 
-      console.log('Upload success:', response.data);
-
-      if (onUploadSuccess) {
+      if (response.status === 202) {
+        setJob({ fileId: response.data.file.id, phase: 'queued', percent: 0 });
+      } else if (onUploadSuccess) {
         onUploadSuccess(response.data.file);
       }
 
@@ -126,6 +156,18 @@ function FileUpload({ onUploadSuccess }) {
           </div>
         )}
       </div>
+
+      {job && (
+        <div className="mt-4" data-testid="upload-progress">
+          <p className="text-sm text-gray-700 mb-1">
+            Processing in background: {job.phase}
+            {job.totalRows ? ` (${job.rowsLoaded} / ${job.totalRows} rows)` : ''}
+          </p>
+          <div className="w-full bg-gray-200 rounded h-2">
+            <div className="bg-blue-600 h-2 rounded" style={{ width: `${job.percent || 0}%` }} />
+          </div>
+        </div>
+      )}
 
       {file && (
         <div className="mt-4 flex gap-2">

@@ -14,3 +14,4 @@ process.env.DATABASE_READER_URL = reader.toString();
 process.env.JWT_SECRET = 'test-secret';
 process.env.QUERY_TIMEOUT_MS = process.env.QUERY_TIMEOUT_MS || '1000';
 process.env.GEMINI_API_KEY = '';
+process.env.INGEST_BACKOFF_MS = '10';

@@ -70,9 +70,11 @@ function createApp() {
 
   app.set('io', io);
   // Emit an event only to sockets in one workspace.
-  app.set('broadcast', (workspaceId, event, payload) => {
+  const broadcast = (workspaceId, event, payload) => {
     io.to(workspaceRoom(workspaceId)).emit(event, payload);
-  });
+  };
+  app.set('broadcast', broadcast);
+  require('./ingest/queue').setBroadcaster(broadcast);
 
   app.use((req, res) => {
     res.status(404).json({ error: 'Route not found' });

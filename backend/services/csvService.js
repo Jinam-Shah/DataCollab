@@ -1,5 +1,3 @@
-const fs = require('fs');
-const csv = require('csv-parser');
 const pool = require('../config/database');
 const { quoteIdent } = require('./workspaceService');
 
@@ -7,7 +5,6 @@ const INT_RE = /^[-+]?\d+$/;
 const FLOAT_RE = /^[-+]?(\d+\.\d*|\.\d+|\d+)([eE][-+]?\d+)?$/;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const US_DATE_RE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-const INT32_MAX = 2147483647;
 
 // Type ranks: a column takes the narrowest type that fits every non-empty value.
 const NUMERIC_TYPES = ['INTEGER', 'FLOAT'];
@@ -18,26 +15,6 @@ function isValidDate(y, m, d) {
 }
 
 class CSVService {
-  // Parse CSV file and detect schema
-  static async parseCSV(filePath) {
-    return new Promise((resolve, reject) => {
-      const rows = [];
-      let headers = null;
-
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('headers', (h) => {
-          headers = h;
-        })
-        .on('data', (row) => rows.push(row))
-        .on('end', () => {
-          const columns = this.inferColumns(headers || [], rows);
-          resolve({ rows, columns, rowCount: rows.length, columnCount: columns.length });
-        })
-        .on('error', reject);
-    });
-  }
-
   // Detect the type of a single value: INTEGER, FLOAT, DATE or TEXT.
   static detectDataType(value) {
     const v = value.trim();
@@ -56,41 +33,6 @@ class CSVService {
     if (current === next) return current;
     if (NUMERIC_TYPES.includes(current) && NUMERIC_TYPES.includes(next)) return 'FLOAT';
     return 'TEXT';
-  }
-
-  // Build column metadata from every row (not only the first 100), with unique SQL names.
-  static inferColumns(headers, rows) {
-    const used = new Set(['row_id']);
-    return headers.map((name, index) => {
-      let type = null;
-      let maxAbsInt = 0;
-      const samples = [];
-      for (const row of rows) {
-        const value = row[name];
-        if (samples.length < 5 && value !== undefined) samples.push(value);
-        if (value === undefined || value === null || value.trim() === '') continue;
-        const t = this.detectDataType(value);
-        type = this.widenType(type, t);
-        if (t === 'INTEGER') maxAbsInt = Math.max(maxAbsInt, Math.abs(Number(value)));
-        if (type === 'TEXT') break;
-      }
-      // Collect the remaining samples if the loop stopped early.
-      for (let i = samples.length; i < Math.min(5, rows.length); i++) samples.push(rows[i][name]);
-
-      let sqlName = this.sanitizeColumnName(name) || `column_${index + 1}`;
-      const base = sqlName;
-      for (let n = 2; used.has(sqlName); n++) sqlName = `${base.substring(0, 58)}_${n}`;
-      used.add(sqlName);
-
-      return {
-        name,
-        sqlName,
-        index,
-        type: type || 'TEXT',
-        big: type === 'INTEGER' && maxAbsInt > INT32_MAX,
-        samples,
-      };
-    });
   }
 
   static sqlType(col) {
@@ -137,42 +79,6 @@ class CSVService {
        )`
     );
     return tableName;
-  }
-
-  // Insert rows in batches. Pass a client to run inside the caller's transaction.
-  static async insertData(schemaName, tableName, rows, columns, db = null, batchSize = 500) {
-    if (rows.length === 0 || columns.length === 0) return;
-    const client = db || (await pool.connect());
-    const ownTransaction = !db;
-    const target = `${quoteIdent(schemaName)}.${quoteIdent(tableName)}`;
-    const columnNames = columns.map((c) => quoteIdent(c.sqlName)).join(', ');
-    // PostgreSQL allows at most 65535 bind parameters per statement.
-    const size = Math.max(1, Math.min(batchSize, Math.floor(65535 / columns.length)));
-
-    try {
-      if (ownTransaction) await client.query('BEGIN');
-      for (let i = 0; i < rows.length; i += size) {
-        const batch = rows.slice(i, i + size);
-        const values = [];
-        const placeholders = batch.map((row, b) => {
-          const ph = columns.map((col, c) => {
-            values.push(this.convertValue(row[col.name], col));
-            return `$${b * columns.length + c + 1}`;
-          });
-          return `(${ph.join(', ')})`;
-        });
-        await client.query(
-          `INSERT INTO ${target} (${columnNames}) VALUES ${placeholders.join(', ')}`,
-          values
-        );
-      }
-      if (ownTransaction) await client.query('COMMIT');
-    } catch (error) {
-      if (ownTransaction) await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      if (ownTransaction) client.release();
-    }
   }
 
   // Sanitize column name for SQL

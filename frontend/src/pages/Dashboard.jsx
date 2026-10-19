@@ -5,6 +5,7 @@ import FileList from '../components/FileUpload/FileList';
 import api from '../services/api';
 import QueryEditor from '../components/QueryEditor/QueryEditor';
 import ChatSidebar from '../components/Chat/ChatSidebar';
+import QualityReport from '../components/FileUpload/QualityReport';
 import { connectSocket, disconnectSocket, initSocket } from '../services/socket';
 
 function Dashboard() {
@@ -21,11 +22,10 @@ function Dashboard() {
     };
   }, []);
 
-  const handleUploadSuccess = (file) => {
-    console.log('File uploaded:', file);
+  const handleUploadSuccess = React.useCallback((file) => {
     setRefreshFiles((prev) => prev + 1);
     setSelectedFile(file);
-  };
+  }, []);
 
   const handleFileSelect = async (file) => {
     try {
@@ -86,6 +86,7 @@ function Dashboard() {
 
         {selectedFile && (
           <div className="mt-6 bg-white rounded-lg shadow p-6">
+            <QualityReport report={selectedFile.qualityReport} />
             <QueryEditor selectedFile={selectedFile} />
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               File Details: {selectedFile.originalFilename || selectedFile.original_filename}

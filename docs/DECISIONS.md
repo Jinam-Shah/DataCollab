@@ -42,3 +42,16 @@ Each entry: the problem, the options, the choice, and why.
 - **Problem:** tables were named `csv_data_<id>`, which tells the LLM nothing.
 - **Choice:** new uploads are named from the file name (`employees.csv` → `employees`), made unique within the workspace. Old tables keep their names.
 - **Why:** schemas make names local to a workspace, and meaningful names help both people and the agent write correct SQL.
+
+## D7. Two-pass streaming ingestion
+
+- **Problem:** the original upload read the whole CSV into memory, guessed types from the first 100 rows, and inserted inside the HTTP request.
+- **Choice:** pass 1 streams the file to infer types over every row and build the quality report; pass 2 streams it again and inserts in batches of up to 1,000 rows (capped by PostgreSQL's 65,535-parameter limit) inside one transaction.
+- **Why:** memory no longer grows with file size (apart from a 16-byte hash per row for duplicate detection), types are correct for the whole column, and a failed attempt rolls back fully, which makes retries safe. Reading the file twice is cheap next to the inserts.
+
+## D8. BullMQ for large uploads, inline for small ones
+
+- **Problem:** a 100K-row file takes seconds to load and must not block the API.
+- **Options:** always queue; never queue; queue above a size threshold.
+- **Choice:** files over `INLINE_UPLOAD_MAX_BYTES` (1 MB default) become BullMQ jobs (3 attempts, exponential backoff from 2 s). Smaller files load during the request and return the quality report directly. Without `REDIS_URL` the same job function runs in-process with the same retry policy.
+- **Why:** small files stay instant and simple; large ones return a job id in ~50 ms (see METRICS.md). Progress goes from the worker to Redis through `job.updateProgress`, and the API's `QueueEvents` listener relays it to the workspace's Socket.io room, so the worker can run as a separate process. On a host without background workers, `RUN_WORKER_IN_API=true` runs the worker inside the API process.
