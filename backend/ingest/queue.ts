@@ -14,7 +14,7 @@ import {
   type IngestResult,
 } from './ingestFile';
 
-export const QUEUE_NAME = 'csv-ingest';
+export const QUEUE_NAME = process.env.INGEST_QUEUE_NAME || 'csv-ingest';
 export const MAX_ATTEMPTS = Number(process.env.INGEST_ATTEMPTS || 3);
 export const BACKOFF_MS = Number(process.env.INGEST_BACKOFF_MS || 2000);
 
