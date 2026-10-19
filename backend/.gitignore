@@ -3,4 +3,5 @@ node_modules/
 uploads/*
 !uploads/.gitkeep
 *.log
-.DS_Store
+.DS_Storedist/
+coverage/

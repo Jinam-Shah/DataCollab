@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { getSocket } from '../../services/socket';
 
 function FileList({ refresh, onFileSelect, onFileDelete }) {
   const [files, setFiles] = useState([]);
@@ -9,6 +10,15 @@ function FileList({ refresh, onFileSelect, onFileDelete }) {
   useEffect(() => {
     loadFiles();
   }, [refresh]);
+
+  // Refresh when anyone in the workspace uploads, finishes loading or deletes a file.
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return undefined;
+    const events = ['file:uploaded', 'file:ready', 'file:failed', 'file:deleted'];
+    events.forEach((e) => socket.on(e, loadFiles));
+    return () => events.forEach((e) => socket.off(e, loadFiles));
+  }, []);
 
   const loadFiles = async () => {
     setLoading(true);
@@ -31,12 +41,12 @@ function FileList({ refresh, onFileSelect, onFileDelete }) {
 
     try {
       await api.delete(`/api/files/${fileId}`);
-      
+
       // Notify parent that file was deleted
       if (onFileDelete) {
         onFileDelete(fileId);
       }
-      
+
       loadFiles();
     } catch (err) {
       console.error('Delete error:', err);
@@ -94,11 +104,11 @@ function FileList({ refresh, onFileSelect, onFileDelete }) {
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h3 className="font-medium text-gray-900">
-                  {file.original_filename}
-                </h3>
+                <h3 className="font-medium text-gray-900">{file.original_filename}</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  {file.row_count} rows, {file.column_count} columns
+                  {file.status && file.status !== 'ready'
+                    ? `Status: ${file.status}${file.error ? ` (${file.error})` : ''}`
+                    : `${file.row_count} rows, ${file.column_count} columns`}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   Uploaded by {file.username} on {formatDate(file.uploaded_at)}
@@ -106,9 +116,7 @@ function FileList({ refresh, onFileSelect, onFileDelete }) {
               </div>
 
               <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-500">
-                  {formatFileSize(file.file_size)}
-                </span>
+                <span className="text-sm text-gray-500">{formatFileSize(file.file_size)}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

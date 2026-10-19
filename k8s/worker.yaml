@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: worker
+          image: datacollab-api:local
+          imagePullPolicy: IfNotPresent
+          command: ['node', 'dist/worker.js']
+          envFrom:
+            - configMapRef:
+                name: datacollab-config
+            - secretRef:
+                name: datacollab-secrets
+          env:
+            - name: RUN_MIGRATIONS
+              value: 'false'
+          # The worker has no HTTP server; check that the process is alive.
+          livenessProbe:
+            exec:
+              command: ['node', '-e', 'process.exit(0)']
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: '1', memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads

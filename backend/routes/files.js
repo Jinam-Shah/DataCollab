@@ -5,21 +5,24 @@ const path = require('path');
 const authMiddleware = require('../middleware/auth');
 const fileController = require('../controllers/fileController');
 
+const { UPLOAD_DIR } = require('../config/paths');
+const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB || 50);
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, 'csv-' + uniqueSuffix + path.extname(file.originalname));
-  }
+  },
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024
+    fileSize: MAX_UPLOAD_MB * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
@@ -27,7 +30,7 @@ const upload = multer({
     } else {
       cb(new Error('Only CSV files are allowed'));
     }
-  }
+  },
 });
 
 // All routes require authentication

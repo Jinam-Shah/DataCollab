@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-19T20:53:04.212Z",
+  "embeddingModel": "local:Xenova/all-MiniLM-L6-v2",
+  "keywordRanking": "cover_density",
+  "questionSet": "retrieval_holdout.jsonl",
+  "command": "npm run eval:retrieval -- --set eval/retrieval_holdout.jsonl --keyword-ranking cover_density",
+  "corpus": {
+    "chunks": 104,
+    "docs": 4
+  },
+  "k": 5,
+  "questions": 15,
+  "summary": {
+    "vector": {
+      "hits": 9,
+      "hitRate": 0.6,
+      "mrr": 0.5666666666666667
+    },
+    "keyword": {
+      "hits": 11,
+      "hitRate": 0.7333333333333333,
+      "mrr": 0.4411111111111111
+    },
+    "hybrid": {
+      "hits": 12,
+      "hitRate": 0.8,
+      "mrr": 0.5111111111111112
+    }
+  },
+  "perQuestion": {
+    "h01": {
+      "vector": null,
+      "keyword": 1,
+      "hybrid": 4
+    },
+    "h02": {
+      "vector": null,
+      "keyword": null,
+      "hybrid": null
+    },
+    "h03": {
+      "vector": null,
+      "keyword": 5,
+      "hybrid": null
+    },
+    "h04": {
+      "vector": null,
+      "keyword": 3,
+      "hybrid": 2
+    },
+    "h05": {
+      "vector": 1,
+      "keyword": 2,
+      "hybrid": 1
+    },
+    "h06": {
+      "vector": 1,
+      "keyword": null,
+      "hybrid": 2
+    },
+    "h07": {
+      "vector": 1,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "h08": {
+      "vector": null,
+      "keyword": 3,
+      "hybrid": 3
+    },
+    "h09": {
+      "vector": 2,
+      "keyword": 4,
+      "hybrid": 3
+    },
+    "h10": {
+      "vector": 1,
+      "keyword": 2,
+      "hybrid": 1
+    },
+    "h11": {
+      "vector": 1,
+      "keyword": null,
+      "hybrid": 4
+    },
+    "h12": {
+      "vector": 1,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "h13": {
+      "vector": 1,
+      "keyword": 2,
+      "hybrid": 2
+    },
+    "h14": {
+      "vector": 1,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "h15": {
+      "vector": null,
+      "keyword": null,
+      "hybrid": null
+    }
+  }
+}

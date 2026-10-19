@@ -1,0 +1,6 @@
+region,amount,code
+north,10,A
+south,,7
+north,,B
+east,,C
+east,,C

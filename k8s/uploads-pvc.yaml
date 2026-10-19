@@ -1,0 +1,12 @@
+# Shared upload directory for the API and the worker. kind has one node, so a ReadWriteOnce
+# volume can be mounted by every pod. A multi-node cluster would need ReadWriteMany storage or,
+# better, object storage for uploads.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads
+spec:
+  accessModes: ['ReadWriteOnce']
+  resources:
+    requests:
+      storage: 2Gi

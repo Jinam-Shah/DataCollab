@@ -1,0 +1,21 @@
+module.exports = {
+  testEnvironment: 'node',
+  transform: { '^.+\\.(t|j)sx?$': ['@swc/jest'] },
+  testMatch: ['**/tests/**/*.test.(js|ts)'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  setupFiles: ['<rootDir>/tests/helpers/env.js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/helpers/teardown.js'],
+  globalSetup: '<rootDir>/tests/helpers/globalSetup.js',
+  testTimeout: 20000,
+  collectCoverageFrom: [
+    '**/*.{js,ts}',
+    '!**/node_modules/**',
+    '!dist/**',
+    '!coverage/**',
+    '!tests/**',
+    '!*.config.js',
+    '!scripts/**',
+    '!eval/**',
+    '!test-db.js',
+  ],
+};

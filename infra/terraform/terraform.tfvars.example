@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars (git-ignored) or, better, export TF_VAR_<name> variables.
+render_owner_id = "tea-xxxxxxxxxxxxxxxxxxxx"
+upstash_email   = "you@example.com"
+# Secrets: export TF_VAR_vercel_api_token, TF_VAR_render_api_key, TF_VAR_neon_api_key,
+# TF_VAR_upstash_api_key, TF_VAR_jwt_secret, TF_VAR_reader_password, TF_VAR_gemini_api_key

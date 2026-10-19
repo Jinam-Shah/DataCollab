@@ -1,99 +1,39 @@
-const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const socketIo = require('socket.io');
 require('dotenv').config();
-
-const app = express();
-const server = http.createServer(app);
-
-// Socket.io setup with CORS
-const io = socketIo(server, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? process.env.FRONTEND_URL 
-      : 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Request logging
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
-  next();
-});
-
-// Test database connection on startup
+// Must run before express, pg and ioredis are required, so they get instrumented.
+require('./observability/telemetry').startTelemetry('datacollab-api');
+const { createApp } = require('./app');
 const pool = require('./config/database');
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('Database connection failed:', err.message);
-  } else {
-    console.log('Database connected at:', res.rows[0].now);
+const { migrate } = require('./db/migrate');
+const { initSqlGuard } = require('./security/sqlGuard');
+
+async function main() {
+  if (process.env.RUN_MIGRATIONS === 'true') await migrate();
+  await initSqlGuard();
+
+  // Free hosts have no shell for one-off commands, so the demo data can be seeded on start.
+  if (process.env.SEED_DEMO === 'true') {
+    await require('./scripts/seed_demo').seedDemo({ log: (m) => console.log(`seed: ${m}`) });
   }
-});
 
-// Auth routes
-const authRoutes = require('./routes/auth');
-app.use('/api/auth', authRoutes);
+  const { rows } = await pool.query('SELECT NOW()');
+  console.log('Database connected at:', rows[0].now);
 
-// File routes
-const fileRoutes = require('./routes/files');
-app.use('/api/files', fileRoutes);
+  const { server } = createApp();
 
-// Query routes
-const queryRoutes = require('./routes/queries');
-app.use('/api/queries', queryRoutes);
-
-// AI routes
-const aiRoutes = require('./routes/ai');
-app.use('/api/ai', aiRoutes);
-
-// Chat routes
-const chatRoutes = require('./routes/chat');
-app.use('/api/chat', chatRoutes);
-
-// Basic health check route
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    message: 'DataCollab API is running',
-    timestamp: new Date().toISOString()
+  const queue = require('./ingest/queue');
+  if (queue.queueEnabled()) {
+    queue.relayQueueEvents();
+    // On hosts without a separate background worker (e.g. Render free tier), consume jobs here.
+    if (process.env.RUN_WORKER_IN_API === 'true') queue.startWorker();
+  }
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   });
-});
+}
 
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
-  
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
-
-// Make io accessible to routes
-app.set('io', io);
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-const PORT = process.env.PORT || 5000;
-
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+main().catch((err) => {
+  console.error('Startup failed:', err.message);
+  process.exit(1);
 });

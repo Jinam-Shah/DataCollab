@@ -1,0 +1,157 @@
+{
+  "date": "2026-10-19T20:52:38.117Z",
+  "embeddingModel": "local:Xenova/all-MiniLM-L6-v2",
+  "keywordRanking": "cover_density",
+  "questionSet": "retrieval_questions.jsonl",
+  "command": "npm run eval:retrieval -- --keyword-ranking cover_density",
+  "corpus": {
+    "chunks": 104,
+    "docs": 4
+  },
+  "k": 5,
+  "questions": 25,
+  "summary": {
+    "vector": {
+      "hits": 21,
+      "hitRate": 0.84,
+      "mrr": 0.62
+    },
+    "keyword": {
+      "hits": 14,
+      "hitRate": 0.56,
+      "mrr": 0.42666666666666664
+    },
+    "hybrid": {
+      "hits": 20,
+      "hitRate": 0.8,
+      "mrr": 0.5406666666666666
+    }
+  },
+  "perQuestion": {
+    "r01": {
+      "vector": 1,
+      "keyword": null,
+      "hybrid": 2
+    },
+    "r02": {
+      "vector": 3,
+      "keyword": 2,
+      "hybrid": 1
+    },
+    "r03": {
+      "vector": 2,
+      "keyword": null,
+      "hybrid": 3
+    },
+    "r04": {
+      "vector": null,
+      "keyword": 2,
+      "hybrid": 4
+    },
+    "r05": {
+      "vector": null,
+      "keyword": null,
+      "hybrid": null
+    },
+    "r06": {
+      "vector": 1,
+      "keyword": 3,
+      "hybrid": 3
+    },
+    "r07": {
+      "vector": 2,
+      "keyword": null,
+      "hybrid": null
+    },
+    "r08": {
+      "vector": 2,
+      "keyword": null,
+      "hybrid": 2
+    },
+    "r09": {
+      "vector": 3,
+      "keyword": null,
+      "hybrid": 5
+    },
+    "r10": {
+      "vector": 4,
+      "keyword": null,
+      "hybrid": 5
+    },
+    "r11": {
+      "vector": 1,
+      "keyword": 2,
+      "hybrid": 1
+    },
+    "r12": {
+      "vector": 3,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "r13": {
+      "vector": null,
+      "keyword": 1,
+      "hybrid": 2
+    },
+    "r14": {
+      "vector": 1,
+      "keyword": null,
+      "hybrid": null
+    },
+    "r15": {
+      "vector": null,
+      "keyword": null,
+      "hybrid": null
+    },
+    "r16": {
+      "vector": 1,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "r17": {
+      "vector": 1,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "r18": {
+      "vector": 1,
+      "keyword": null,
+      "hybrid": 5
+    },
+    "r19": {
+      "vector": 1,
+      "keyword": 3,
+      "hybrid": 1
+    },
+    "r20": {
+      "vector": 2,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "r21": {
+      "vector": 1,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "r22": {
+      "vector": 1,
+      "keyword": 2,
+      "hybrid": 2
+    },
+    "r23": {
+      "vector": 1,
+      "keyword": 1,
+      "hybrid": 1
+    },
+    "r24": {
+      "vector": 4,
+      "keyword": null,
+      "hybrid": null
+    },
+    "r25": {
+      "vector": 1,
+      "keyword": 1,
+      "hybrid": 1
+    }
+  }
+}

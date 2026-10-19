@@ -1,0 +1,6 @@
+apiVersion: 1
+providers:
+  - name: DataCollab
+    type: file
+    options:
+      path: /otel-lgtm/datacollab-dashboard.json

@@ -1,198 +1,129 @@
-const fs = require('fs');
-const csv = require('csv-parser');
 const pool = require('../config/database');
+const { quoteIdent } = require('./workspaceService');
+
+const INT_RE = /^[-+]?\d+$/;
+const FLOAT_RE = /^[-+]?(\d+\.\d*|\.\d+|\d+)([eE][-+]?\d+)?$/;
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const US_DATE_RE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+// ISO 8601 date-time, e.g. 2024-01-01T00:37:09.096Z or 2024-01-01 08:00:00+02:00
+const ISO_TIMESTAMP_RE =
+  /^(\d{4})-(\d{2})-(\d{2})[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}(:?\d{2})?)?$/;
+
+// Type ranks: a column takes the narrowest type that fits every non-empty value.
+const NUMERIC_TYPES = ['INTEGER', 'FLOAT'];
+const TIME_TYPES = ['DATE', 'TIMESTAMP'];
+
+function isValidDate(y, m, d) {
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
 
 class CSVService {
-  // Parse CSV file and detect schema
-  static async parseCSV(filePath) {
-    return new Promise((resolve, reject) => {
-      const rows = [];
-      const columns = new Map();
-      let rowCount = 0;
-
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', (row) => {
-          rowCount++;
-          
-          // Detect column types from first 100 rows
-          if (rowCount <= 100) {
-            Object.keys(row).forEach((columnName, index) => {
-              if (!columns.has(columnName)) {
-                columns.set(columnName, {
-                  name: columnName,
-                  index: index,
-                  type: 'TEXT',
-                  samples: []
-                });
-              }
-              
-              const value = row[columnName];
-              const col = columns.get(columnName);
-              
-              // Store sample values
-              if (col.samples.length < 5) {
-                col.samples.push(value);
-              }
-              
-              // Detect data type
-              if (value && value.trim() !== '') {
-                const detectedType = this.detectDataType(value);
-                if (detectedType !== 'TEXT') {
-                  col.type = detectedType;
-                }
-              }
-            });
-          }
-          
-          rows.push(row);
-        })
-        .on('end', () => {
-          resolve({
-            rows,
-            columns: Array.from(columns.values()),
-            rowCount,
-            columnCount: columns.size
-          });
-        })
-        .on('error', (error) => {
-          reject(error);
-        });
-    });
-  }
-
-  // Detect data type from value
+  // Detect the type of a single value: INTEGER, FLOAT, DATE, TIMESTAMP or TEXT.
   static detectDataType(value) {
-    const trimmedValue = value.trim();
-    
-    // Check for integer
-    if (/^-?\d+$/.test(trimmedValue)) {
-      return 'INTEGER';
-    }
-    
-    // Check for float
-    if (/^-?\d+\.\d+$/.test(trimmedValue)) {
-      return 'FLOAT';
-    }
-    
-    // Check for date
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue) || 
-        /^\d{2}\/\d{2}\/\d{4}$/.test(trimmedValue)) {
-      return 'DATE';
-    }
-    
+    const v = value.trim();
+    if (INT_RE.test(v)) return 'INTEGER';
+    if (FLOAT_RE.test(v)) return 'FLOAT';
+    let m = v.match(ISO_DATE_RE);
+    if (m && isValidDate(+m[1], +m[2], +m[3])) return 'DATE';
+    m = v.match(US_DATE_RE);
+    if (m && isValidDate(+m[3], +m[1], +m[2])) return 'DATE';
+    m = v.match(ISO_TIMESTAMP_RE);
+    if (m && isValidDate(+m[1], +m[2], +m[3]) && !Number.isNaN(Date.parse(v))) return 'TIMESTAMP';
     return 'TEXT';
   }
 
-  // Create dynamic table for CSV data
-  static async createDataTable(fileId, columns) {
-    const tableName = `csv_data_${fileId}`;
-    
-    // Build CREATE TABLE statement
-    const columnDefinitions = columns.map(col => {
-      const sanitizedName = this.sanitizeColumnName(col.name);
-      let sqlType = 'TEXT';
-      
-      switch (col.type) {
-        case 'INTEGER':
-          sqlType = 'INTEGER';
-          break;
-        case 'FLOAT':
-          sqlType = 'NUMERIC';
-          break;
-        case 'DATE':
-          sqlType = 'DATE';
-          break;
-      }
-      
-      return `"${sanitizedName}" ${sqlType}`;
-    }).join(', ');
-    
-    const createTableSQL = `
-        CREATE TABLE IF NOT EXISTS "${tableName}" (
-            row_id SERIAL PRIMARY KEY,
-            ${columnDefinitions}
-    )
-`;
-    
-    await pool.query(createTableSQL);
-    return tableName;
+  // Combine two value types into the narrowest column type that holds both.
+  static widenType(current, next) {
+    if (!current) return next;
+    if (current === next) return current;
+    if (NUMERIC_TYPES.includes(current) && NUMERIC_TYPES.includes(next)) return 'FLOAT';
+    if (TIME_TYPES.includes(current) && TIME_TYPES.includes(next)) return 'TIMESTAMP';
+    return 'TEXT';
   }
 
-  // Insert CSV data into table
-  static async insertData(tableName, rows, columns) {
-    if (rows.length === 0) return;
-
-    const client = await pool.connect();
-    
-    try {
-      await client.query('BEGIN');
-      
-      // Prepare column names
-      const columnNames = columns.map(col => 
-        `"${this.sanitizeColumnName(col.name)}"`
-      ).join(', ');
-      
-      // Insert in batches of 500 rows
-      const batchSize = 500;
-      for (let i = 0; i < rows.length; i += batchSize) {
-        const batch = rows.slice(i, i + batchSize);
-        
-        const values = [];
-        const placeholders = [];
-        
-        batch.forEach((row, batchIndex) => {
-          const rowPlaceholders = [];
-          columns.forEach((col, colIndex) => {
-            const paramIndex = batchIndex * columns.length + colIndex + 1;
-            rowPlaceholders.push(`$${paramIndex}`);
-            
-            let value = row[col.name];
-            
-            // Convert to appropriate type
-            if (col.type === 'INTEGER' && value) {
-              value = parseInt(value) || null;
-            } else if (col.type === 'FLOAT' && value) {
-              value = parseFloat(value) || null;
-            } else if (!value || value.trim() === '') {
-              value = null;
-            }
-            
-            values.push(value);
-          });
-          placeholders.push(`(${rowPlaceholders.join(', ')})`);
-        });
-        
-        const insertSQL = `
-          INSERT INTO "${tableName}" (${columnNames})
-          VALUES ${placeholders.join(', ')}
-        `;
-        
-        await client.query(insertSQL, values);
-      }
-      
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+  static sqlType(col) {
+    switch (col.type) {
+      case 'INTEGER':
+        return col.big ? 'NUMERIC' : 'INTEGER';
+      case 'FLOAT':
+        return 'DOUBLE PRECISION';
+      case 'DATE':
+        return 'DATE';
+      case 'TIMESTAMP':
+        return 'TIMESTAMPTZ';
+      default:
+        return 'TEXT';
     }
+  }
+
+  // Convert one raw CSV value for insertion into a column of the inferred type.
+  static convertValue(raw, col) {
+    if (raw === undefined || raw === null) return null;
+    const v = String(raw).trim();
+    if (v === '') return null;
+    switch (col.type) {
+      case 'INTEGER':
+        return col.big ? v : parseInt(v, 10);
+      case 'FLOAT':
+        return parseFloat(v);
+      case 'DATE': {
+        const us = v.match(US_DATE_RE);
+        if (us) return `${us[3]}-${us[1].padStart(2, '0')}-${us[2].padStart(2, '0')}`;
+        return v;
+      }
+      default:
+        return raw;
+    }
+  }
+
+  // Create the table for a CSV inside its workspace schema.
+  static async createDataTable(schemaName, tableName, columns, db = pool) {
+    const columnDefinitions = columns
+      .map((col) => `${quoteIdent(col.sqlName)} ${this.sqlType(col)}`)
+      .join(', ');
+    await db.query(
+      `CREATE TABLE ${quoteIdent(schemaName)}.${quoteIdent(tableName)} (
+         row_id SERIAL PRIMARY KEY${columnDefinitions ? ', ' + columnDefinitions : ''}
+       )`
+    );
+    return tableName;
   }
 
   // Sanitize column name for SQL
   static sanitizeColumnName(name) {
-    return name
+    return String(name)
+      .replace(/^\uFEFF/, '')
+      .trim()
       .replace(/[^a-zA-Z0-9_]/g, '_')
       .replace(/^(\d)/, '_$1')
       .toLowerCase()
       .substring(0, 63);
   }
 
+  // Pick a readable table name from the file name, unique within the workspace.
+  static async uniqueTableName(workspaceSlug, originalFilename, db = pool) {
+    let base = this.sanitizeColumnName(String(originalFilename).replace(/\.csv$/i, ''))
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .substring(0, 50);
+    if (!base || base.startsWith('pg_')) base = `table_${base}`.replace(/_+$/, '');
+    const { rows } = await db.query(
+      'SELECT table_name FROM csv_files WHERE workspace_id = $1 AND table_name LIKE $2',
+      [workspaceSlug, `${base}%`]
+    );
+    const taken = new Set(rows.map((r) => r.table_name));
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base}_${n}`;
+    return name;
+  }
+
   // Get data preview
-  static async getPreview(tableName, limit = 100) {
-    const query = `SELECT * FROM "${tableName}" LIMIT $1`;
-    const result = await pool.query(query, [limit]);
+  static async getPreview(schemaName, tableName, limit = 100) {
+    const result = await pool.query(
+      `SELECT * FROM ${quoteIdent(schemaName)}.${quoteIdent(tableName)} ORDER BY row_id LIMIT $1`,
+      [limit]
+    );
     return result.rows;
   }
 }
