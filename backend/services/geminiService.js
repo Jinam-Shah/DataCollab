@@ -12,7 +12,7 @@ class GeminiService {
 
     try {
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || 'gemini-3.8-flash'}:generateContent`,
         {
           contents: [
             {
@@ -25,12 +25,14 @@ class GeminiService {
           ],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 500,
+            maxOutputTokens: 2048,
           },
         },
         {
+          // The key goes in a header, not the URL, so it never appears in proxy or request logs.
           headers: {
             'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
           },
         }
       );

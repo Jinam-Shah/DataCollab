@@ -1,6 +1,6 @@
 // Chat model factory. Gemini (free tier, Google AI Studio key) is the default; any
 // OpenAI-compatible endpoint works too, e.g. a local Ollama model or Gemini's OpenAI endpoint.
-//   LLM_PROVIDER=gemini   GEMINI_API_KEY=...  GEMINI_MODEL=gemini-2.5-flash
+//   LLM_PROVIDER=gemini   GEMINI_API_KEY=...  GEMINI_MODEL=gemini-3.8-flash
 //   LLM_PROVIDER=openai   OPENAI_BASE_URL=http://localhost:11434/v1  OPENAI_MODEL=qwen2.5:7b
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
@@ -41,9 +41,16 @@ export function createChatModel(overrides: { temperature?: number } = {}): Model
     throw new Error('GEMINI_API_KEY is not configured');
   }
   const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
-  const name = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  // Pinned for reproducible evals. gemini-2.5-* is no longer offered to new API keys (2026-10).
+  const name = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   return {
     name: `gemini:${name}`,
-    model: new ChatGoogleGenerativeAI({ model: name, apiKey, temperature, maxRetries: 2 }),
+    // Retries back off exponentially, which rides out the free tier's per-minute limits (HTTP 429).
+    model: new ChatGoogleGenerativeAI({
+      model: name,
+      apiKey,
+      temperature,
+      maxRetries: Number(process.env.LLM_MAX_RETRIES || 4),
+    }),
   };
 }
