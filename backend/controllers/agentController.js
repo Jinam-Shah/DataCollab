@@ -47,6 +47,7 @@ exports.ask = async (req, res) => {
       rowCount: result.rowCount,
       hasMore: result.hasMore,
       attempts: result.attempts,
+      citations: result.citations,
       latencyMs: result.latencyMs,
     });
   } catch (error) {

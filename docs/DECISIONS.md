@@ -67,3 +67,16 @@ Each entry: the problem, the options, the choice, and why.
 - **Problem:** `@monaco-editor/react` downloads Monaco from jsDelivr at runtime, which made e2e tests depend on an external CDN and added a third-party runtime dependency.
 - **Choice:** import the core editor and the SQL language from the `monaco-editor` package and pass it to the loader (`src/monacoSetup.js`).
 - **Cost:** the main bundle is now about 915 KB gzipped. Lazy-loading the editor is a possible follow-up.
+
+## D11. Local embeddings (all-MiniLM-L6-v2 via transformers.js)
+
+- **Problem:** document chunks and queries need embeddings, on free services only.
+- **Options:** Gemini embedding API (free tier, rate limited, needs a key); OpenAI (paid); a local model in Node.
+- **Choice:** `Xenova/all-MiniLM-L6-v2` (384 dimensions, 8-bit quantized) through `@huggingface/transformers`, running in the API process. `EMBEDDINGS_PROVIDER=gemini` switches to `gemini-embedding-001` truncated to 384 dimensions; `hash` is a deterministic stand-in for tests.
+- **Why:** no rate limits, no key, no network at query time, and evaluations are reproducible. Loading the model takes about 1 s, and embedding a query about 10–20 ms on CPU. Cost: onnxruntime adds roughly 290 MB to `node_modules`, and about 100 MB of RAM while loaded. `.npmrc` skips its optional GPU download.
+
+## D12. Hybrid retrieval with reciprocal rank fusion, and the keyword ranking change
+
+- **Problem:** vector search misses exact numbers and names; keyword search misses paraphrases.
+- **Choice:** retrieve 20 candidates from each (pgvector HNSW cosine, PostgreSQL full-text search) and merge with reciprocal rank fusion, `score = Σ 1 / (60 + rank)`. RRF uses ranks, not raw scores, so cosine distances and `ts_rank` values never need to be put on the same scale.
+- **What the measurement changed:** the first keyword retriever (an AND query falling back to OR, ranked by `ts_rank_cd`) found only 14/25 dev questions, and fusing it made hybrid *worse* than vector alone (80% against 84%). Ranking an OR query with `ts_rank(..., 1)` (normalized by chunk length) raised keyword to 21/25 and hybrid to 24/25. That change was chosen on the dev questions, so 15 new held-out questions were written afterwards: there, hybrid (80%) beats vector-only (60%), hit rate is the same for both keyword rankings (12/15), and MRR improves from 0.511 to 0.602. See METRICS.md.

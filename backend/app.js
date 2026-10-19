@@ -61,6 +61,7 @@ function createApp() {
   app.use('/api/ai', require('./routes/ai'));
   app.use('/api/chat', require('./routes/chat'));
   app.use('/api/agent', require('./routes/agent'));
+  app.use('/api/documents', require('./routes/documents'));
 
   app.get('/health', (req, res) => {
     res.json({
@@ -85,7 +86,7 @@ function createApp() {
   });
 
   app.use((err, req, res, next) => {
-    if (err.name === 'MulterError' || err.message === 'Only CSV files are allowed') {
+    if (err.name === 'MulterError' || /^Only (CSV files|PDF, Markdown)/.test(err.message)) {
       return res.status(400).json({ error: err.message });
     }
     console.error('Server error:', err);

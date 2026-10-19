@@ -37,13 +37,33 @@ export interface Attempt {
   rowCount?: number;
 }
 
-export function planMessages(question: string, tableList: string): BaseMessage[] {
+export function planMessages(
+  question: string,
+  tableList: string,
+  hasDocuments = false
+): BaseMessage[] {
+  const system = hasDocuments
+    ? 'You help answer questions about a workspace that has data tables and uploaded documents. ' +
+      'Call the get_schema tool with the tables needed when the answer needs numbers from the data. ' +
+      'Call the search_documents tool when the answer needs definitions, methods or other facts written in the documents. ' +
+      'Call both when the question needs both. If unsure which tables, omit the tables argument.'
+    : 'You help answer questions about tables in a workspace. Call the get_schema tool with the ' +
+      'tables needed to answer the question. If unsure, omit the tables argument to get every table.';
+  return [
+    new SystemMessage(system),
+    new HumanMessage(`Tables:\n${tableList || '(none)'}\n\nQuestion: ${question}`),
+  ];
+}
+
+/** Answer from document excerpts only, citing them as [1], [2]. */
+export function documentAnswerMessages(question: string, excerpts: string): BaseMessage[] {
   return [
     new SystemMessage(
-      'You help answer questions about tables in a workspace. Call the get_schema tool with the ' +
-        'tables needed to answer the question. If unsure, omit the tables argument to get every table.'
+      'Answer the question using only the numbered excerpts. Cite every claim with the excerpt ' +
+        'number in square brackets, like [1] or [2][3]. If the excerpts do not contain the answer, ' +
+        'say so. Keep it to a few sentences.'
     ),
-    new HumanMessage(`Tables:\n${tableList}\n\nQuestion: ${question}`),
+    new HumanMessage(`Excerpts:\n${excerpts}\n\nQuestion: ${question}`),
   ];
 }
 
@@ -101,8 +121,12 @@ export function summarizePrompt(input: {
   rows: Record<string, unknown>[];
   rowCount: number;
   hasMore?: boolean;
+  excerpts?: string;
 }): BaseMessage[] {
   const shown = input.rows.slice(0, 20);
+  const docs = input.excerpts
+    ? `\n\nDocument excerpts (cite as [n] when you use them):\n${input.excerpts}`
+    : '';
   return [
     new SystemMessage(
       'Answer the question in 1-3 plain-English sentences using only the query result. ' +
@@ -111,7 +135,7 @@ export function summarizePrompt(input: {
     ),
     new HumanMessage(
       `Question: ${input.question}\nColumns: ${input.columns.join(', ')}\n` +
-        `Rows (${input.rowCount}${input.hasMore ? '+, truncated' : ''}):\n${JSON.stringify(shown)}`
+        `Rows (${input.rowCount}${input.hasMore ? '+, truncated' : ''}):\n${JSON.stringify(shown)}${docs}`
     ),
   ];
 }

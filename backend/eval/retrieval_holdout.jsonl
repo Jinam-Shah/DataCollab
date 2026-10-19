@@ -1,0 +1,15 @@
+{"id": "h01", "question": "Which young age group had the biggest rise in death rate from 2015 to 2016?", "files": ["nchs_db293_mortality_2016.pdf"], "contains": "15\u201324 (7.8%)"}
+{"id": "h02", "question": "Did infant deaths go up or down in 2016 compared with 2015?", "files": ["nchs_db293_mortality_2016.pdf"], "contains": "294 fewer infant deaths"}
+{"id": "h03", "question": "How many additional deaths were recorded in 2018 compared with 2017?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "25,702 more deaths"}
+{"id": "h04", "question": "How many fewer babies died in 2018 than the year before?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "868 fewer infant deaths"}
+{"id": "h05", "question": "What happened to the infant death rate from unintentional injuries in 2018?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "IMR decreased 9.9%"}
+{"id": "h06", "question": "How much did the flu and pneumonia death rate rise in 2018?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "4.2% for influenza and pneumonia"}
+{"id": "h07", "question": "What percentage of 2018 deaths were from the ten leading causes?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "73.8% of all deaths in the United States in 2018"}
+{"id": "h08", "question": "How did the gap in life expectancy between women and men change in 2017?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "between females and males increased 0.1 year"}
+{"id": "h09", "question": "What was the age-adjusted death rate change for non-Hispanic white men in 2017?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "non-Hispanic white males (0.6%)"}
+{"id": "h10", "question": "Which infant cause of death moved up to third place in 2017?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "maternal complications became the third"}
+{"id": "h11", "question": "By how much did infant deaths from accidents increase in 2017?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "IMR for unintentional injuries increased 10.7%"}
+{"id": "h12", "question": "What does mb mean in the mag_type column?", "files": ["demo_data_dictionary.md"], "contains": "`mb` is body-wave magnitude"}
+{"id": "h13", "question": "How can I tell if an earthquake is south of the equator?", "files": ["demo_data_dictionary.md"], "contains": "Negative latitude is the Southern Hemisphere"}
+{"id": "h14", "question": "Is the network code uppercase or lowercase?", "files": ["demo_data_dictionary.md"], "contains": "stored in lowercase"}
+{"id": "h15", "question": "What population is the age-adjusted death rate standardized to in the demo table?", "files": ["demo_data_dictionary.md"], "contains": "adjusted to the 2000 US standard population"}

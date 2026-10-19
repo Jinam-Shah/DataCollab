@@ -69,3 +69,36 @@ it('shows agent errors', async () => {
     await screen.findByText('The AI model is not configured on this server')
   ).toBeInTheDocument();
 });
+
+it('shows citations and opens the source passage', async () => {
+  api.post.mockResolvedValue({
+    data: {
+      status: 'answered',
+      answer: 'All causes is a total [1].',
+      sql: null,
+      attempts: [],
+      latencyMs: 10,
+      runId: 9,
+      citations: [
+        {
+          n: 1,
+          chunkId: 4,
+          documentId: 2,
+          filename: 'dictionary.md',
+          page: null,
+          section: 'Caveats',
+          snippet: '...',
+        },
+      ],
+    },
+  });
+  api.get = vi.fn().mockResolvedValue({
+    data: { chunk: { content: 'The cause value "All causes" is a total.' } },
+  });
+  render(<AgentPanel />);
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText('Question'), 'What is All causes?{Enter}');
+  await user.click(await screen.findByRole('button', { name: '[1] dictionary.md, Caveats' }));
+  expect(await screen.findByText('The cause value "All causes" is a total.')).toBeInTheDocument();
+  expect(api.get).toHaveBeenCalledWith('/api/documents/2/chunks/4');
+});

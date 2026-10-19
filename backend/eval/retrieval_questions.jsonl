@@ -1,0 +1,25 @@
+{"id": "r01", "question": "What was life expectancy at birth in the US in 2017?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "In 2017, life expectancy at birth was 78.6 years"}
+{"id": "r02", "question": "How many resident deaths were registered in the United States in 2017?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "a total of 2,813,503 resident deaths"}
+{"id": "r03", "question": "By what percent did the unintentional injuries death rate go up from 2016 to 2017?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "4.2% for unintentional injuries"}
+{"id": "r04", "question": "Which age groups had higher death rates in 2017 than in 2016?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "25\u201334 (2.9%)"}
+{"id": "r05", "question": "How did the number of infant deaths in 2017 compare with 2016?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "826 fewer infant deaths than in 2016"}
+{"id": "r06", "question": "What fraction of all 2017 deaths came from the 10 leading causes?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "74.0% of all deaths in the United States in 2017"}
+{"id": "r07", "question": "Why did life expectancy fall in 2017?", "files": ["nchs_db328_mortality_2017.pdf"], "contains": "largely because of increases in mortality from unintentional injuries, suicide, diabetes, and influenza and pneumonia"}
+{"id": "r08", "question": "How many more deaths were there in 2016 than in 2015?", "files": ["nchs_db293_mortality_2016.pdf"], "contains": "31,618 more deaths than in 2015"}
+{"id": "r09", "question": "How much did the unintentional injury death rate increase between 2015 and 2016?", "files": ["nchs_db293_mortality_2016.pdf"], "contains": "The rate increased 9.7% for unintentional injuries"}
+{"id": "r10", "question": "What was the infant mortality rate in 2015 versus 2016?", "files": ["nchs_db293_mortality_2016.pdf"], "contains": "IMR changed from 589.5 infant deaths per 100,000 live births in 2015 to 587.0 in 2016"}
+{"id": "r11", "question": "Which causes drove the decline in life expectancy in 2016?", "files": ["nchs_db293_mortality_2016.pdf"], "contains": "largely because of increases in mortality from unintentional injuries, suicide, and Alzheimer"}
+{"id": "r12", "question": "What was life expectancy at birth in 2018?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "In 2018, life expectancy at birth was 78.7 years"}
+{"id": "r13", "question": "How many resident deaths were registered in the US in 2018?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "2,839,205"}
+{"id": "r14", "question": "How much did the heart disease death rate change from 2017 to 2018?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "The rate decreased 0.8% for heart disease"}
+{"id": "r15", "question": "By how much did infant mortality fall from 2017 to 2018?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "IMR decreased 2.3% from 579.3"}
+{"id": "r16", "question": "Why did life expectancy increase in 2018?", "files": ["nchs_db355_mortality_2018.pdf"], "contains": "largely because of decreases in mortality from cancer, unintentional injuries"}
+{"id": "r17", "question": "How are age-adjusted death rates computed by NCHS?", "files": ["nchs_db293_mortality_2016.pdf", "nchs_db328_mortality_2017.pdf", "nchs_db355_mortality_2018.pdf"], "contains": "direct method of standardization"}
+{"id": "r18", "question": "How is the infant mortality rate calculated?", "files": ["nchs_db293_mortality_2016.pdf", "nchs_db328_mortality_2017.pdf", "nchs_db355_mortality_2018.pdf"], "contains": "Computed by dividing the number of infant deaths"}
+{"id": "r19", "question": "What does the All causes value in the causes of death table mean?", "files": ["demo_data_dictionary.md"], "contains": "is the total of every cause of death for that state and year"}
+{"id": "r20", "question": "Should I add the United States rows to the state rows?", "files": ["demo_data_dictionary.md"], "contains": "The state value \"United States\" is the national total"}
+{"id": "r21", "question": "What is the mww magnitude type?", "files": ["demo_data_dictionary.md"], "contains": "`mww` is moment magnitude from the W-phase"}
+{"id": "r22", "question": "Which time zone is the earthquake time column in?", "files": ["demo_data_dictionary.md"], "contains": "The time column is in UTC"}
+{"id": "r23", "question": "Why does Alabama have FIPS code 1 instead of 01?", "files": ["demo_data_dictionary.md"], "contains": "leading zeros are dropped"}
+{"id": "r24", "question": "How do I get death rates per person by Census region?", "files": ["demo_data_dictionary.md"], "contains": "Join causes_of_death to state_population on the state name"}
+{"id": "r25", "question": "What counts as a deep-focus earthquake?", "files": ["demo_data_dictionary.md"], "contains": "Events deeper than 300 km are called deep-focus earthquakes"}

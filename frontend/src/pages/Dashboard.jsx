@@ -7,6 +7,7 @@ import api from '../services/api';
 import QueryEditor from '../components/QueryEditor/QueryEditor';
 import ChatSidebar from '../components/Chat/ChatSidebar';
 import QualityReport from '../components/FileUpload/QualityReport';
+import DocumentsPanel from '../components/Documents/DocumentsPanel';
 import { connectSocket, disconnectSocket, initSocket } from '../services/socket';
 
 function Dashboard() {
@@ -74,12 +75,13 @@ function Dashboard() {
             <FileUpload onUploadSuccess={handleUploadSuccess} />
           </div>
 
-          <div>
+          <div className="space-y-6">
             <FileList
               refresh={refreshFiles}
               onFileSelect={handleFileSelect}
               onFileDelete={handleFileDelete}
             />
+            <DocumentsPanel />
           </div>
           <div className="lg:row-span-2">
             <div className="sticky top-8 h-[600px]">

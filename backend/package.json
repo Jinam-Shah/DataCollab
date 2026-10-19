@@ -12,19 +12,21 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "jest --runInBand",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "worker": "tsx watch worker.js",
     "start:worker": "node dist/worker.js",
     "seed:demo": "tsx scripts/seed_demo.ts",
     "fetch:demo-data": "node scripts/fetch_demo_data.js",
     "eval": "tsx eval/run.ts",
     "e2e:server": "tsx scripts/e2e_server.js",
-    "test:coverage": "jest --runInBand --coverage"
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand --coverage",
+    "eval:retrieval": "tsx eval/retrieval.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "@langchain/core": "^1.2.18",
     "@langchain/google-genai": "^2.3.2",
     "@langchain/langgraph": "^1.5.1",
@@ -42,6 +44,7 @@
     "multer": "^2.4.0",
     "pg": "^8.13.1",
     "socket.io": "^4.8.1",
+    "unpdf": "^1.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

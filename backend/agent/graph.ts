@@ -17,8 +17,10 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { Workspace } from '../services/workspaceService';
 import { makeTools, type RunQueryOutput } from './tools';
 import { listTables, getWorkspaceSchema, schemaToText, type SchemaOptions } from './schema';
+import { hasDocuments, type SearchHit } from '../rag/store';
 import {
   planMessages,
+  documentAnswerMessages,
   writeSqlMessages,
   singleShotMessages,
   type Attempt,
@@ -71,8 +73,41 @@ export interface AgentResult {
   hasMore: boolean;
   attempts: Attempt[];
   retries: number;
+  citations: Citation[];
   usage: { inputTokens: number; outputTokens: number };
   error?: string;
+}
+
+export interface Citation {
+  n: number;
+  chunkId: number;
+  documentId: number;
+  filename: string;
+  page: number | null;
+  section: string | null;
+  snippet: string;
+}
+
+export function toCitations(hits: SearchHit[]): Citation[] {
+  return hits.map((h, i) => ({
+    n: i + 1,
+    chunkId: h.chunkId,
+    documentId: h.documentId,
+    filename: h.filename,
+    page: h.page,
+    section: h.section,
+    snippet: h.content.slice(0, 240),
+  }));
+}
+
+/** Numbered excerpts for prompts: [1] file.pdf (p. 3): text */
+export function excerptsText(hits: SearchHit[]): string {
+  return hits
+    .map((h, i) => {
+      const where = [h.page ? `p. ${h.page}` : null, h.section].filter(Boolean).join(', ');
+      return `[${i + 1}] ${h.filename}${where ? ` (${where})` : ''}: ${h.content}`;
+    })
+    .join('\n\n');
 }
 
 // ---------- helpers for reading model output ----------
@@ -150,6 +185,10 @@ const normalizeSql = (s: string) =>
 const AgentState = Annotation.Root({
   question: Annotation<string>(),
   tables: Annotation<string[]>({ reducer: (_a, b) => b, default: () => [] }),
+  // Set by the plan step: whether the question needs tables, documents, or both.
+  wantsTables: Annotation<boolean>({ reducer: (_a, b) => b, default: () => true }),
+  docQuery: Annotation<string | null>({ reducer: (_a, b) => b, default: () => null }),
+  docHits: Annotation<SearchHit[]>({ reducer: (_a, b) => b, default: () => [] }),
   schemaText: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   pendingSql: Annotation<string | null>({ reducer: (_a, b) => b, default: () => null }),
   attempts: Annotation<Attempt[]>({ reducer: (a, b) => a.concat(b), default: () => [] }),
@@ -182,37 +221,123 @@ export function buildAgentGraph(opts: AgentOptions) {
   const plan = async (state: State) => {
     const started = Date.now();
     const available = await listTables(opts.workspace);
-    if (available.length === 0) {
+    const docsAvailable = await hasDocuments(opts.workspace.slug);
+    if (available.length === 0 && !docsAvailable) {
       await emit({
         type: 'plan',
-        message: 'No tables in this workspace',
+        message: 'No tables or documents in this workspace',
         latencyMs: Date.now() - started,
       });
       return {
         route: 'give_up' as const,
-        finalAnswer: 'This workspace has no tables yet. Upload a CSV first.',
+        finalAnswer:
+          'This workspace has no tables or documents yet. Upload a CSV or a document first.',
       };
     }
     const tableList = available.map((t) => `- ${t.table} (${t.rowCount} rows)`).join('\n');
-    const messages = planMessages(state.question, tableList);
-    const response = await opts.model.bindTools!([tools.getSchema]).invoke(messages);
-    const args = extractToolArgs(response, 'get_schema');
-    const names = new Set(available.map((t) => t.table));
-    const requested = Array.isArray(args?.tables)
-      ? (args!.tables as string[]).filter((t) => names.has(t))
-      : [];
-    const tables = requested.length ? requested : [...names];
+    const messages = planMessages(state.question, tableList, docsAvailable);
+    const offered = [
+      ...(available.length ? [tools.getSchema] : []),
+      ...(docsAvailable ? [tools.searchDocuments] : []),
+    ];
+    const response = await opts.model.bindTools!(offered).invoke(messages);
     const usage = usageOf(response);
+
+    // Read every tool call the model made (it may ask for both tables and documents).
+    const calls = (response as AIMessage).tool_calls?.length
+      ? (response as AIMessage).tool_calls!.map((c) => ({
+          name: c.name,
+          args: c.args as Record<string, unknown>,
+        }))
+      : [{ name: '', args: extractToolArgs(response, 'get_schema') ?? {} }];
+    const schemaCall = calls.find(
+      (c) => c.name === 'get_schema' || (c.name === '' && 'tables' in c.args)
+    );
+    const docCall = calls.find(
+      (c) => c.name === 'search_documents' || (c.name === '' && 'query' in c.args)
+    );
+
+    let wantsTables = Boolean(schemaCall) || (!docCall && available.length > 0);
+    if (!available.length) wantsTables = false;
+    const docQuery =
+      docsAvailable && (docCall || !wantsTables)
+        ? String(docCall?.args.query || state.question)
+        : null;
+
+    const names = new Set(available.map((t) => t.table));
+    const requested = Array.isArray(schemaCall?.args.tables)
+      ? (schemaCall!.args.tables as string[]).filter((t) => names.has(t))
+      : [];
+    const tables = wantsTables ? (requested.length ? requested : [...names]) : [];
+    const parts = [
+      wantsTables ? `reading schema for ${tables.join(', ')}` : null,
+      docQuery ? `searching documents for "${docQuery}"` : null,
+    ].filter(Boolean);
     await emit({
       type: 'plan',
-      message: `Reading schema for ${tables.join(', ')}`,
+      message: parts.join(' and ').replace(/^./, (c) => c.toUpperCase()),
       prompt: promptText(messages),
-      toolName: 'get_schema',
-      toolInput: { tables },
+      toolName: [wantsTables && 'get_schema', docQuery && 'search_documents']
+        .filter(Boolean)
+        .join(','),
+      toolInput: { tables, docQuery },
       latencyMs: Date.now() - started,
       ...usage,
     });
-    return { tables, inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 };
+    return {
+      tables,
+      wantsTables,
+      docQuery,
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
+    };
+  };
+
+  const searchDocs = async (state: State) => {
+    const started = Date.now();
+    const hits = (await tools.searchDocuments.invoke({
+      query: state.docQuery ?? state.question,
+    })) as SearchHit[];
+    await emit({
+      type: 'search_documents',
+      message: `Found ${hits.length} relevant passage(s)`,
+      toolName: 'search_documents',
+      toolInput: { query: state.docQuery },
+      toolOutput: hits.map((h) => ({
+        chunkId: h.chunkId,
+        filename: h.filename,
+        page: h.page,
+        score: h.score,
+      })),
+      latencyMs: Date.now() - started,
+    });
+    return { docHits: hits };
+  };
+
+  const answerDocuments = async (state: State) => {
+    const started = Date.now();
+    if (state.docHits.length === 0) {
+      const text = 'I could not find anything about this in the workspace documents.';
+      await emit({ type: 'answer', message: text, latencyMs: Date.now() - started });
+      return { finalAnswer: text, status: 'answered' as const };
+    }
+    const messages = documentAnswerMessages(state.question, excerptsText(state.docHits));
+    const response = await opts.model.invoke(messages);
+    const usage = usageOf(response);
+    const text = contentText(response).trim();
+    await emit({
+      type: 'answer',
+      message: text,
+      prompt: promptText(messages),
+      latencyMs: Date.now() - started,
+      ...usage,
+    });
+    return {
+      finalAnswer: text,
+      status: 'answered' as const,
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
+    };
   };
 
   const getSchema = async (state: State) => {
@@ -231,7 +356,13 @@ export function buildAgentGraph(opts: AgentOptions) {
 
   const writeSql = async (state: State) => {
     const started = Date.now();
-    const messages = writeSqlMessages(variant, state.question, state.schemaText, state.attempts);
+    const messages = writeSqlMessages(
+      variant,
+      state.question,
+      state.schemaText,
+      state.attempts,
+      state.docHits.length ? excerptsText(state.docHits) : undefined
+    );
     const response = await opts.model.bindTools!([tools.runQuery]).invoke(messages);
     const sql = sqlFromMessage(response);
     const usage = usageOf(response);
@@ -351,6 +482,7 @@ export function buildAgentGraph(opts: AgentOptions) {
       rows: result.rows,
       rowCount: result.rowCount,
       hasMore: result.hasMore,
+      excerpts: state.docHits.length ? excerptsText(state.docHits) : undefined,
     })) as { answer: string; usage: { input_tokens?: number; output_tokens?: number } | null };
     await emit({
       type: 'answer',
@@ -378,31 +510,44 @@ export function buildAgentGraph(opts: AgentOptions) {
     return { finalAnswer: text, status: 'gave_up' as const };
   };
 
-  return new StateGraph(AgentState)
-    .addNode('plan', plan)
-    .addNode('get_schema', getSchema)
-    .addNode('write_sql', writeSql)
-    .addNode('run_sql', runSql)
-    .addNode('check_result', checkResult)
-    .addNode('answer', answer)
-    .addNode('give_up', giveUp)
-    .addEdge(START, 'plan')
-    .addConditionalEdges('plan', (s: State) => (s.route === 'give_up' ? 'give_up' : 'get_schema'), [
-      'give_up',
-      'get_schema',
-    ])
-    .addEdge('get_schema', 'write_sql')
-    .addEdge('write_sql', 'run_sql')
-    .addEdge('run_sql', 'check_result')
-    .addConditionalEdges(
-      'check_result',
-      (s: State) =>
-        s.route === 'retry' ? 'write_sql' : s.route === 'answer' ? 'answer' : 'give_up',
-      ['write_sql', 'answer', 'give_up']
-    )
-    .addEdge('answer', END)
-    .addEdge('give_up', END)
-    .compile();
+  return (
+    new StateGraph(AgentState)
+      .addNode('plan', plan)
+      .addNode('search_documents', searchDocs)
+      .addNode('get_schema', getSchema)
+      .addNode('write_sql', writeSql)
+      .addNode('run_sql', runSql)
+      .addNode('check_result', checkResult)
+      .addNode('answer', answer)
+      .addNode('answer_documents', answerDocuments)
+      .addNode('give_up', giveUp)
+      .addEdge(START, 'plan')
+      .addConditionalEdges(
+        'plan',
+        (s: State) =>
+          s.route === 'give_up' ? 'give_up' : s.docQuery ? 'search_documents' : 'get_schema',
+        ['give_up', 'search_documents', 'get_schema']
+      )
+      // Documents only -> answer from excerpts; documents and tables -> excerpts go into the SQL prompt.
+      .addConditionalEdges(
+        'search_documents',
+        (s: State) => (s.wantsTables ? 'get_schema' : 'answer_documents'),
+        ['get_schema', 'answer_documents']
+      )
+      .addEdge('get_schema', 'write_sql')
+      .addEdge('write_sql', 'run_sql')
+      .addEdge('run_sql', 'check_result')
+      .addConditionalEdges(
+        'check_result',
+        (s: State) =>
+          s.route === 'retry' ? 'write_sql' : s.route === 'answer' ? 'answer' : 'give_up',
+        ['write_sql', 'answer', 'give_up']
+      )
+      .addEdge('answer', END)
+      .addEdge('answer_documents', END)
+      .addEdge('give_up', END)
+      .compile()
+  );
 }
 
 export async function runAgent(question: string, opts: AgentOptions): Promise<AgentResult> {
@@ -422,6 +567,7 @@ export async function runAgent(question: string, opts: AgentOptions): Promise<Ag
       hasMore: success ? last.hasMore : false,
       attempts: state.attempts,
       retries: state.retries,
+      citations: toCitations(state.docHits),
       usage: { inputTokens: state.inputTokens, outputTokens: state.outputTokens },
     };
   } catch (err) {
@@ -435,6 +581,7 @@ export async function runAgent(question: string, opts: AgentOptions): Promise<Ag
       hasMore: false,
       attempts: [],
       retries: 0,
+      citations: [],
       usage: { inputTokens: 0, outputTokens: 0 },
       error: (err as Error).message,
     };
@@ -457,6 +604,7 @@ export async function runSingleShot(
     hasMore: false,
     attempts: [],
     retries: 0,
+    citations: [],
     usage: { inputTokens: 0, outputTokens: 0 },
   };
   try {

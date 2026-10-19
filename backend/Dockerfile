@@ -3,7 +3,7 @@
 
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 # Optional: behind a TLS-intercepting proxy, pass its CA with --secret id=npm_ca,src=<bundle.crt>
 RUN --mount=type=secret,id=npm_ca,required=false NODE_EXTRA_CA_CERTS=/run/secrets/npm_ca npm ci
 
@@ -16,7 +16,7 @@ ENV NODE_ENV=production \
     UPLOAD_DIR=/app/uploads \
     PORT=5000
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN --mount=type=secret,id=npm_ca,required=false NODE_EXTRA_CA_CERTS=/run/secrets/npm_ca \
     npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist

@@ -7,6 +7,7 @@ import type { Workspace } from '../services/workspaceService';
 import { runReadonlyQuery } from '../services/readonlyQuery';
 import { getWorkspaceSchema, schemaToText, type SchemaOptions } from './schema';
 import { summarizePrompt } from './prompts';
+import { searchDocuments as searchStore } from '../rag/store';
 
 export const AGENT_ROW_LIMIT = 50;
 
@@ -35,6 +36,20 @@ export const summarizeInput = z.object({
   rows: z.array(z.record(z.string(), z.unknown())),
   rowCount: z.number(),
   hasMore: z.boolean().optional(),
+  excerpts: z.string().optional(),
+});
+
+export const searchDocumentsInput = z.object({
+  query: z
+    .string()
+    .describe('What to look for in the uploaded documents, as a short search query.'),
+  k: z
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .optional()
+    .describe('How many passages to return (default 5).'),
 });
 
 export type RunQueryOutput =
@@ -105,5 +120,16 @@ export function makeTools(ctx: ToolContext) {
     }
   );
 
-  return { getSchema, runQuery, summarizeResult };
+  const searchDocuments = tool(
+    async ({ query, k }) => searchStore(ctx.workspace.slug, query, { mode: 'hybrid', k: k ?? 5 }),
+    {
+      name: 'search_documents',
+      description:
+        'Search the documents uploaded to this workspace (data dictionaries, reports, PDFs) with ' +
+        'hybrid keyword + semantic search. Returns numbered passages with their source.',
+      schema: searchDocumentsInput,
+    }
+  );
+
+  return { getSchema, runQuery, summarizeResult, searchDocuments };
 }

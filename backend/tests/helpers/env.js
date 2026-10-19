@@ -20,3 +20,4 @@ process.env.INGEST_BACKOFF_MS = '10';
 process.env.REDIS_URL = '';
 // A separate queue name, so a running development worker cannot pick up test jobs.
 process.env.INGEST_QUEUE_NAME = 'csv-ingest-test';
+process.env.EMBEDDINGS_PROVIDER = 'hash';

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import { getSocket } from '../../services/socket';
+import Citations from './Citations';
 
 const STEP_LABELS = {
   plan: 'Planning',
@@ -130,6 +131,7 @@ function AgentPanel({ onOpenSql }) {
               </div>
             </div>
           )}
+          <Citations citations={result.citations} />
         </div>
       )}
     </div>
