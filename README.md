@@ -1,418 +1,199 @@
-# DataCollab - Real-time Collaborative Data Analysis Platform
+# DataCollab: collaborative SQL workspace with an AI data agent
 
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/Jinam-Shah/DataCollab)
+[![CI](https://github.com/Jinam-Shah/DataCollab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jinam-Shah/DataCollab/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A full-stack web application that enables teams to upload CSV files, run SQL queries, generate insights with AI, and collaborate in real-time through chat and live query broadcasting.
+Teams upload CSVs and documents, query them with SQL or plain English, chart the results and
+chat in real time. An AI agent built with LangGraph.js reads the schema, writes SQL, runs it
+through a read-only safety layer, retries on errors, and answers with the SQL it used and
+citations to documents. The same tools are available to any MCP client.
 
 ![Dashboard](./screenshots/dashboard.png)
 
-## 📸 Screenshots
-
-### Login & Registration
-![Login Page](./screenshots/login.png)
-*User authentication with workspace support*
-
-### File Management
-![File Upload](./screenshots/file-upload.png)
-*Drag-and-drop CSV upload with automatic schema detection*
-
-![File Preview](./screenshots/file-preview.png)
-*Data preview with column types and sample values*
-
-### SQL Query Editor
-![Query Editor](./screenshots/query-editor.png)
-*Monaco editor with syntax highlighting and sample queries*
-
-![Query Results](./screenshots/query-results.png)
-*Paginated results with execution time*
-
-### AI-Powered Text-to-SQL
-![AI Text to SQL](./screenshots/ai-text-to-sql.png)
-*Natural language questions converted to SQL*
-
-### Data Visualizations
-![Visualizations](./screenshots/visualizations.png)
-*Interactive bar, line, and pie charts*
-
-### Real-time Collaboration
-![Real-time Chat](./screenshots/chat.png)
-*Live chat with team members in the same workspace*
+**Live demo:** not deployed yet. `infra/terraform` defines the free-tier hosting (Vercel, Render,
+Neon, Upstash); see [Deployment](#deployment). Once it is live, the demo login is
+`demo@datacollab.dev` / `demo1234`. The free tier sleeps when idle, so the first request can take about a minute.
 
 ---
 
-## ✨ Features
+## Architecture
 
-### Core Functionality
-- **CSV File Upload & Management**: Drag-and-drop CSV files with automatic schema detection
-- **SQL Query Editor**: Monaco-powered editor with syntax highlighting
-- **AI-Powered Text-to-SQL**: Convert natural language questions to SQL queries using Google Gemini API
-- **Real-time Collaboration**: Live chat and query execution broadcasting with Socket.io
-- **Data Visualizations**: Create bar charts, line charts, and pie charts from query results
-- **Workspace-based Collaboration**: Teams share files and collaborate within isolated workspaces
-
-### Technical Highlights
-- **Dynamic Table Creation**: Automatically creates PostgreSQL tables for uploaded CSV files
-- **Schema Detection**: Identifies INTEGER, FLOAT, TEXT, and DATE data types
-- **Query Validation**: Prevents dangerous SQL operations (DROP, DELETE on system tables)
-- **Real-time Updates**: Instant file uploads, query results, and chat messages across users
-- **JWT Authentication**: Secure token-based authentication with 7-day expiration
-
----
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Node.js** + **Express.js** - REST API server
-- **PostgreSQL** - Relational database for data storage
-- **Socket.io** - Real-time WebSocket communication
-- **JWT** - Token-based authentication
-- **Multer** - File upload handling
-- **csv-parser** - CSV parsing and validation
-- **bcrypt** - Password hashing
-- **Axios** - HTTP client for Gemini API
-
-### Frontend
-- **React** (JavaScript) - UI framework
-- **React Router** - Client-side routing
-- **Tailwind CSS** - Utility-first styling
-- **Monaco Editor** - SQL code editor
-- **Recharts** - Data visualization library
-- **Socket.io Client** - Real-time communication
-- **Axios** - API requests
-
-### AI Integration
-- **Google Gemini API** - Natural language to SQL conversion
-
----
-
-## 📁 Project Structure
-```
-datacollab/
-├── backend/
-│   ├── config/
-│   │   └── database.js          # PostgreSQL connection pool
-│   ├── controllers/
-│   │   ├── authController.js    # User registration/login
-│   │   ├── fileController.js    # CSV upload/management
-│   │   ├── queryController.js   # SQL execution
-│   │   ├── aiController.js      # Text-to-SQL generation
-│   │   └── chatController.js    # Real-time chat
-│   ├── middleware/
-│   │   └── auth.js              # JWT verification
-│   ├── models/
-│   │   └── User.js              # User database operations
-│   ├── routes/
-│   │   ├── auth.js
-│   │   ├── files.js
-│   │   ├── queries.js
-│   │   ├── ai.js
-│   │   └── chat.js
-│   ├── services/
-│   │   ├── csvService.js        # CSV parsing & table creation
-│   │   ├── sqlService.js        # SQL execution & validation
-│   │   └── geminiService.js     # Gemini API integration
-│   ├── uploads/                 # Temporary file storage
-│   ├── .env.example             # Environment variables template
-│   └── server.js                # Main entry point
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Auth/
-│   │   │   ├── FileUpload/
-│   │   │   ├── QueryEditor/
-│   │   │   ├── AIQuery/
-│   │   │   ├── Visualizations/
-│   │   │   └── Chat/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── utils/
-│   ├── .env.example             # Frontend environment template
-│   └── public/
-├── screenshots/                  # Application screenshots
-└── README.md
+```mermaid
+flowchart LR
+  U[Browser: React + Vite, Monaco, Recharts] -->|REST + Socket.io| API[Node.js Express API]
+  API --> PG[(PostgreSQL 16 + pgvector)]
+  API --> R[(Redis: cache, rate limits, BullMQ, Socket.io fan-out)]
+  API --> Q[BullMQ worker: CSV ingestion]
+  Q --> PG
+  API --> AG[LangGraph.js agent]
+  AG -->|function calling| LLM[Gemini API or any OpenAI-compatible model]
+  AG --> T1[get_schema]
+  AG --> T2[run_readonly_query]
+  AG --> T3[search_documents: hybrid RAG]
+  AG --> T4[summarize_result]
+  T2 --> RO[(read-only role, one schema per workspace)]
+  MCP[MCP server: stdio + HTTP] --> T1 & T2 & T3
+  API -. OpenTelemetry .-> OBS[Grafana: Tempo traces, Prometheus metrics]
 ```
 
----
-
-## 🗄️ Database Schema
-```sql
--- Users table
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    workspace_id VARCHAR(50) DEFAULT 'default',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- CSV files metadata
-CREATE TABLE csv_files (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    original_filename VARCHAR(255) NOT NULL,
-    stored_filename VARCHAR(255) NOT NULL,
-    file_size INTEGER NOT NULL,
-    row_count INTEGER,
-    column_count INTEGER,
-    workspace_id VARCHAR(50),
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- CSV column schema information
-CREATE TABLE csv_columns (
-    id SERIAL PRIMARY KEY,
-    file_id INTEGER REFERENCES csv_files(id) ON DELETE CASCADE,
-    column_name VARCHAR(255) NOT NULL,
-    data_type VARCHAR(50) NOT NULL,
-    column_index INTEGER NOT NULL,
-    sample_values TEXT[]
-);
-
--- Chat messages
-CREATE TABLE chat_messages (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    username VARCHAR(50) NOT NULL,
-    message TEXT NOT NULL,
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_users_workspace ON users(workspace_id);
-CREATE INDEX idx_csv_files_user ON csv_files(user_id);
-CREATE INDEX idx_csv_files_workspace ON csv_files(workspace_id);
-CREATE INDEX idx_csv_columns_file ON csv_columns(file_id);
-CREATE INDEX idx_chat_messages_sent ON chat_messages(sent_at DESC);
-
--- Dynamic tables: csv_data_{file_id} created at runtime for each uploaded CSV
+```mermaid
+stateDiagram-v2
+  [*] --> plan
+  plan --> search_documents: needs documents
+  plan --> get_schema: needs tables
+  search_documents --> get_schema: needs both
+  search_documents --> answer_documents: documents only
+  get_schema --> write_sql
+  write_sql --> run_sql
+  run_sql --> check_result
+  check_result --> write_sql: error or empty result, retries < 3
+  check_result --> answer: success
+  check_result --> give_up: 3 retries used
+  answer --> [*]
+  answer_documents --> [*]
+  give_up --> [*]
 ```
 
----
+## Features
 
-## 🚀 Installation & Setup
+**Data**
+- CSV upload with type inference over every row (integer, float, date, timestamp, text) and a **quality report**: empty %, mixed types, duplicates, numeric and date ranges, with warnings before the first query.
+- Files over 1 MB load in the background through **BullMQ**, with live progress over Socket.io and retries with backoff.
+- Monaco SQL editor, paginated results, bar/line/pie charts.
 
-### Prerequisites
-- Node.js 18+ 
-- PostgreSQL 14+
-- Google Gemini API key ([Get free key](https://aistudio.google.com/app/apikey))
+**AI**
+- **Agent** (LangGraph.js, LangChain.js tools with zod schemas, Gemini function calling): plan → schema → SQL → run → check, with up to 3 retries that feed the database error back. Steps stream to the UI; every answer shows its SQL with *Open in editor*.
+- **Single-shot** NL-to-SQL kept as a baseline mode.
+- **RAG** over PDF/Markdown/TXT: chunks with page and section references, local `all-MiniLM-L6-v2` embeddings, **hybrid search** (pgvector HNSW + PostgreSQL full-text, reciprocal rank fusion), clickable citations.
+- **Tracing** of every run and step (prompt, tool input/output, error, latency, tokens) in `agent_runs` / `agent_steps`, with a Run history page and an analysis notebook.
+- **MCP server** (`list_tables`, `describe_table`, `run_readonly_query`, `search_documents`) over stdio and Streamable HTTP, with workspace API tokens. See [docs/MCP.md](docs/MCP.md).
 
-### 1. Clone Repository
+**Safety and operations**
+- Model- and user-written SQL runs as a **read-only role** that can only see one workspace's schema, with a 5 s statement timeout, a **single-statement check** using PostgreSQL's own parser, a keyword denylist and a 1000-row cap. See [docs/SECURITY.md](docs/SECURITY.md).
+- **Redis** query cache keyed by data version (never stale) and per-user sliding-window **rate limits**.
+- **OpenTelemetry** traces and metrics with a provisioned **Grafana** dashboard. See [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
+- Real-time chat, upload and query events in authenticated per-workspace Socket.io rooms (Redis adapter across replicas).
+
+## Results
+
+All numbers are measured; commands and environments are in [METRICS.md](METRICS.md).
+
+| What | Result |
+|---|---|
+| Agent accuracy, 40-question eval set (local `qwen2.5-coder:7b`) | single-shot 77.5% → agent 80.0% → agent + column profiles **82.5%** (hard questions 38.5% → 53.8%); prompt B 77.5%. Differences are not significant (McNemar p ≥ 0.625). |
+| Document retrieval hit rate @5, held-out questions | hybrid **80%** vs vector-only 60% (MRR 0.602 vs 0.567) |
+| CSV ingest | 100,000 rows in 2.5 s end to end; the API answers the upload in about 50 ms (background job) |
+| Query cache | p95 126.6 ms → **15.5 ms**, 108 → 997 req/s (aggregate over 100K rows, 10 connections) |
+| Tests | 136 backend (Jest + Supertest, real PostgreSQL and Redis), 14 frontend (Vitest), 3 end-to-end (Playwright, including a two-browser real-time sync test) |
+
+The eval set is a fixed development set used while building the agent, so it shows differences
+between configurations, not expected accuracy on new questions. No Gemini key was available in
+the build environment; rerun `npm run eval` with `LLM_PROVIDER=gemini` for Gemini numbers.
+
+![Grafana dashboard](./screenshots/grafana-dashboard.png)
+
+## Tech stack
+
+| Area | Tools |
+|---|---|
+| Frontend | React 19, Vite, Tailwind, Monaco, Recharts, Socket.io client |
+| Backend | Node.js 22, Express, TypeScript (gradual, `allowJs`), Socket.io, BullMQ, ioredis |
+| Data | PostgreSQL 16 + pgvector, libpg-query, Redis |
+| AI | LangGraph.js, LangChain.js, `@langchain/google-genai` (Gemini), OpenAI-compatible models via Ollama, transformers.js embeddings, MCP TypeScript SDK |
+| Quality | Jest, Supertest, Vitest, React Testing Library, Playwright, ESLint, Prettier |
+| Ops | Docker, Docker Compose, GitHub Actions, Kubernetes (kind, Kustomize, HPA), Terraform, OpenTelemetry, Grafana |
+
+## Run it locally
+
+### With Docker Compose (everything)
+
 ```bash
-git clone https://github.com/Jinam-Shah/DataCollab.git
-cd DataCollab
+docker compose up --build
+docker compose exec api node dist/scripts/seed_demo.js   # optional demo data
 ```
 
----
+App: http://localhost:3000 · API: http://localhost:5000. Add the observability stack with
+`docker compose -f docker-compose.yml -f docker-compose.observability.yml up --build`
+(Grafana on http://localhost:3001).
 
-### 2. Backend Setup
+### Without Docker
+
+Prerequisites: Node.js 22, PostgreSQL 16 with the `pgvector` extension, optionally Redis, and a
+[Gemini API key](https://aistudio.google.com/app/apikey) (free).
+
 ```bash
+# Backend
 cd backend
 npm install
-```
+cp .env.example .env          # set DATABASE_URL, DATABASE_READER_URL, JWT_SECRET, GEMINI_API_KEY
+createdb datacollab
+npm run migrate               # creates tables, the read-only role, pgvector
+npm run seed:demo             # optional: demo account and public dataset
+npm run dev                   # API on http://localhost:5000
+npm run worker                # only if REDIS_URL is set
 
-**Configure environment variables:**
-```bash
-# Copy example file
-cp .env.example .env
-
-# Edit .env with your values
-```
-
-**Required environment variables (see `backend/.env.example`):**
-```env
-PORT=5000
-DATABASE_URL=postgresql://username:password@localhost:5432/datacollab
-DATABASE_READER_URL=postgresql://datacollab_reader:another_password@localhost:5432/datacollab
-JWT_SECRET=your_super_secret_key_here
-GEMINI_API_KEY=your_gemini_api_key_here
-NODE_ENV=development
-```
-
-**Create the database and run migrations:**
-```bash
-createdb datacollab          # or: psql -U postgres -c "CREATE DATABASE datacollab"
-npm run migrate              # applies backend/db/migrations in order
-```
-
-**Start backend server:**
-```bash
-npm run dev
-```
-
-Backend runs on `http://localhost:5000`
-
----
-
-### 3. Frontend Setup
-```bash
+# Frontend
 cd ../frontend
 npm install
+cp .env.example .env          # VITE_API_URL=http://localhost:5000
+npm run dev                   # http://localhost:3000
 ```
 
-**Configure environment variables:**
+To use a free local model instead of Gemini: `LLM_PROVIDER=openai OPENAI_BASE_URL=http://localhost:11434/v1 OPENAI_MODEL=qwen2.5-coder:7b` with [Ollama](https://ollama.com).
+
+## Tests and evaluation
+
 ```bash
-# Copy example file
-cp .env.example .env
-
-# Edit .env with your values
+cd backend && npm test                 # Jest + Supertest (needs PostgreSQL; TEST_DATABASE_URL)
+cd frontend && npm test                # Vitest
+cd frontend && npx playwright test     # end to end, starts its own API and frontend
+cd backend && npm run eval             # agent evaluation (see eval/run.ts for options)
+cd backend && npm run eval:retrieval   # document retrieval evaluation
 ```
 
-**Required environment variables (see `frontend/.env.example`):**
-```env
-VITE_API_URL=http://localhost:5000
-VITE_SOCKET_URL=http://localhost:5000
-```
+CI runs lint, format, typecheck, all three test suites, a Docker build, Kubernetes manifest
+validation and `terraform validate` on every push and pull request.
 
-**Start development server (Vite):**
-```bash
-npm run dev
-```
+## Deployment
 
-Frontend runs on `http://localhost:3000`
+- **Free hosting:** `infra/terraform` defines Neon, Upstash, Render and Vercel. [infra/terraform/README.md](infra/terraform/README.md) lists the steps, including the manual ones.
+- **Continuous deployment:** `.github/workflows/deploy.yml` deploys `main` after CI passes.
+- **Kubernetes:** `make k8s-up` runs everything on a local kind cluster, with an autoscaler on the API. See [k8s/README.md](k8s/README.md).
 
----
+## Documentation
 
-## 📖 Usage Guide
+| Document | Contents |
+|---|---|
+| [docs/AUDIT.md](docs/AUDIT.md) | What the project looked like before the upgrade, and the bugs found |
+| [docs/SECURITY.md](docs/SECURITY.md) | Threat model and what each SQL control does and does not prevent |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Design decisions with the options considered |
+| [METRICS.md](METRICS.md) | Every measured number, with environment and command |
+| [docs/MCP.md](docs/MCP.md) | Connecting MCP clients |
+| [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) | Traces, metrics and the dashboard |
 
-### 1. Register & Login
-- Navigate to `http://localhost:3000`
-- Create an account with username, email, and password
-- Optionally specify a **workspace ID** for team collaboration
-- Users with the same workspace ID share files and can collaborate
+## Known limitations
 
-### 2. Upload CSV Files
-- Drag and drop CSV files onto the upload area
-- Files are automatically parsed and validated
-- View detected schema (column names and data types)
-- See preview of first 100 rows
+- Workspace membership is self-asserted: anyone who registers with a workspace ID joins it.
+- JWTs live in `localStorage` for 7 days; refresh tokens in httpOnly cookies are not implemented.
+- Eval numbers come from a local 7B model on a 40-question development set; Gemini results and a held-out SQL set are still to do.
+- The kind cluster and the free-tier deployment are defined and validated but have not been run end to end yet.
+- On free hosting, uploads are ingested in the API process, and an upload in progress is lost if the instance spins down.
+- The frontend bundle is about 915 KB gzipped because Monaco is bundled.
 
-### 3. Run SQL Queries
-- Select a file from the list
-- Write SQL queries in the Monaco editor with syntax highlighting
-- Use pre-built sample queries for quick starts
-- Click "Run Query" to execute
-- View results in a paginated table with execution time
+## Screenshots
 
-### 4. AI Text-to-SQL
-- Type natural language questions in the AI input box
-- Examples: 
-  - "Show employees with salary above 80000"
-  - "Count total rows"
-  - "Find average age by department"
-- AI generates SQL query automatically
-- Review and modify generated SQL before execution
+| | |
+|---|---|
+| ![Login](./screenshots/login.png) | ![File upload](./screenshots/file-upload.png) |
+| ![Query editor](./screenshots/query-editor.png) | ![Visualizations](./screenshots/visualizations.png) |
+| ![AI text-to-SQL](./screenshots/ai-text-to-sql.png) | ![Chat](./screenshots/chat.png) |
 
-### 5. Create Visualizations
-- After running a query, scroll to "Visualize Results"
-- Select chart type: Bar, Line, or Pie chart
-- Choose X-axis (categories) and Y-axis (values) from query columns
-- Charts update instantly and display first 20 rows
+The screenshots above predate the upgrade (agent panel, quality report and documents panel are newer).
 
-### 6. Real-time Collaboration
-- Open chat sidebar on the right
-- Send messages to team members in your workspace
-- See live notifications when others upload files or run queries
-- All users in the same workspace see updates instantly
+## Author
 
----
+**Jinam Shah** · [GitHub @Jinam-Shah](https://github.com/Jinam-Shah)
 
-## 🔌 API Endpoints
+## License
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-- `GET /api/auth/profile` - Get current user (protected)
-
-### Files
-- `POST /api/files/upload` - Upload CSV file (protected)
-- `GET /api/files` - List all files in workspace (protected)
-- `GET /api/files/:id` - Get file details with preview (protected)
-- `DELETE /api/files/:id` - Delete file (protected)
-
-### Queries
-- `POST /api/queries/execute` - Execute SQL query (protected)
-- `GET /api/queries/schema/:tableName` - Get table schema (protected)
-- `GET /api/queries/samples/:fileId` - Get sample queries (protected)
-
-### AI
-- `POST /api/ai/text-to-sql` - Generate SQL from natural language (protected)
-
-### Chat
-- `GET /api/chat/messages` - Get recent messages (protected)
-- `POST /api/chat/messages` - Send message (protected)
-
----
-
-## 🔒 Security Features
-
-User and AI-generated SQL runs through a layered safety path. Details and limits: [docs/SECURITY.md](docs/SECURITY.md).
-
-- **Per-workspace schemas** (`ws_<id>`) for uploaded tables
-- **Read-only role** with SELECT only on one workspace, a 5 s statement timeout and read-only transactions
-- **Single-statement check** with PostgreSQL's own parser (`libpg-query`), plus the keyword denylist as a second layer
-- **Row cap** of 1000 rows per page with pagination
-- **Workspace checks** on every file endpoint and authenticated, per-workspace Socket.io rooms
-- **Password hashing** with bcrypt, **JWT** with 7-day expiry
-
----
-
-## 🔮 Future Enhancements
-
-- [ ] Query history and favorites
-- [ ] Excel/JSON file support
-- [ ] Advanced chart customization (colors, legends)
-- [ ] Scheduled query execution
-- [ ] Data export (CSV, PDF, Excel)
-- [ ] User presence indicators (online/offline status)
-- [ ] Live cursor tracking in editor
-- [ ] Mobile responsive design
-- [ ] Docker containerization
-- [ ] CI/CD pipeline with GitHub Actions
-- [ ] Rate limiting for API endpoints
-- [ ] Query result caching
-- [ ] Multi-factor authentication
-
----
-
-## 👨‍💻 Author
-
-**Jinam Shah**  
-
-[![GitHub](https://img.shields.io/badge/GitHub-@Jinam--Shah-181717?logo=github)](https://github.com/Jinam-Shah)
-
-
-**Skills Demonstrated:**
-- Full-stack JavaScript development (Node.js, React)
-- Database design and SQL optimization
-- Real-time communication with WebSockets
-- RESTful API development
-- AI/LLM integration
-- Authentication and security
-- Git version control
-
----
-
-## 📝 License
-
-MIT License - See [LICENSE](LICENSE) file for details
-
----
-
-## 🙏 Acknowledgments
-
-- [Google Gemini API](https://ai.google.dev/) for AI-powered text-to-SQL
-- [Monaco Editor](https://microsoft.github.io/monaco-editor/) by Microsoft
-- [Recharts](https://recharts.org/) visualization library
-- [Socket.io](https://socket.io/) for real-time communication
-- [Tailwind CSS](https://tailwindcss.com/) for styling
----
-
-## 📞 Contact & Feedback
-
-If you have any questions or feedback about this project:
-- Open an issue on [GitHub](https://github.com/Jinam-Shah/DataCollab/issues)
-
-**Star this repository if you found it helpful!** ⭐
+MIT
