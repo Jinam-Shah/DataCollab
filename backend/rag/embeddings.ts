@@ -41,7 +41,10 @@ async function localEmbed(texts: string[]): Promise<number[][]> {
     // Loaded lazily, so the API starts fast and the hash provider never loads the model.
     extractor = (async () => {
       const { pipeline, env } = await import('@huggingface/transformers');
-      if (process.env.TRANSFORMERS_CACHE_DIR) env.cacheDir = process.env.TRANSFORMERS_CACHE_DIR;
+      // The default cache is inside node_modules, which a non-root container user cannot write.
+      env.cacheDir =
+        process.env.TRANSFORMERS_CACHE_DIR ||
+        require('path').join(require('os').tmpdir(), 'transformers-cache');
       return pipeline('feature-extraction', LOCAL_MODEL, { dtype: 'q8' });
     })();
   }
