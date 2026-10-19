@@ -1,5 +1,7 @@
 // Standalone ingestion worker: `node dist/worker.js` (or `npm run worker` in development).
 require('dotenv').config();
+// Must run before express, pg and ioredis are required, so they get instrumented.
+require('./observability/telemetry').startTelemetry('datacollab-worker');
 const { startWorker, queueEnabled, closeQueue } = require('./ingest/queue');
 
 if (!queueEnabled()) {

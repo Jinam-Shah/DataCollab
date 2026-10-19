@@ -1,4 +1,6 @@
 require('dotenv').config();
+// Must run before express, pg and ioredis are required, so they get instrumented.
+require('./observability/telemetry').startTelemetry('datacollab-api');
 const { createApp } = require('./app');
 const pool = require('./config/database');
 const { migrate } = require('./db/migrate');

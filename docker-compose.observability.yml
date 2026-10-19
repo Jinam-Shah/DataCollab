@@ -1,0 +1,22 @@
+# Local observability stack: OpenTelemetry Collector, Prometheus, Tempo, Loki and Grafana in one
+# container (grafana/otel-lgtm), with the DataCollab dashboard provisioned.
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up --build
+# Grafana: http://localhost:3001 (admin / admin) -> Dashboards -> DataCollab
+services:
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - '3001:3000' # Grafana
+      - '4318:4318' # OTLP over HTTP
+    volumes:
+      - ./observability/grafana/datacollab-dashboard.json:/otel-lgtm/datacollab-dashboard.json:ro
+      - ./observability/grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/datacollab.yaml:ro
+
+  api:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4318
+    depends_on: [lgtm]
+
+  worker:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4318

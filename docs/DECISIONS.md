@@ -86,3 +86,10 @@ Each entry: the problem, the options, the choice, and why.
 - **Problem:** MCP clients need access to one workspace's data without a user's login session.
 - **Choice:** workspace-scoped API tokens (random 24 bytes, stored as SHA-256), a server instance per request bound to the token's workspace, and Streamable HTTP in stateless mode at `/mcp`, plus stdio for local clients.
 - **Why:** tokens can be revoked one by one and never appear in the database in plain text. Stateless HTTP works behind any load balancer and on hosts that sleep (Render free tier), because no session is kept in memory. All tools reuse the Phase 1 path, so a client can do nothing a logged-in user could not.
+
+## D14. Selected OpenTelemetry instrumentations plus custom metrics
+
+- **Problem:** we need request, database, agent and cache visibility without much overhead.
+- **Options:** `auto-instrumentations-node` (instruments around 40 libraries); only the libraries we use.
+- **Choice:** HTTP, Express, pg and ioredis instrumentations, plus four custom instruments. Agent steps become child spans of `agent.run`, created after each step with its measured latency.
+- **Why:** smaller dependency tree and startup cost, and every span or metric on the dashboard is one we chose. The custom HTTP histogram is labelled with route patterns (`/api/files/:id`), which keeps the number of Prometheus series bounded.

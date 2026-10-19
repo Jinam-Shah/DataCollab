@@ -5,6 +5,7 @@ import { startRun } from './trace';
 import type { PromptVariant } from './prompts';
 import type { Workspace } from '../services/workspaceService';
 import type { SchemaOptions } from './schema';
+import { tracer, recordAgentRun, recordStepSpan, recordToolCall } from '../observability/metrics';
 
 export interface AskOptions {
   workspace: Workspace;
@@ -34,37 +35,62 @@ export async function ask(
   const schemaOptions = opts.schemaOptions ?? {
     includeProfiles: process.env.AGENT_COLUMN_PROFILES !== 'false',
   };
-  const trace = await startRun(
-    {
-      userId: opts.userId,
-      workspaceSlug: opts.workspace.slug,
-      question: opts.question,
-      mode,
-      model: modelInfo.name,
-      promptVariant,
-      source: opts.source,
-      evalRun: opts.evalRun,
-    },
-    opts.onStep
-  );
+  // One span per run; each recorded step becomes a child span (agent.step.<type>).
+  return tracer.startActiveSpan('agent.run', async (span) => {
+    span.setAttributes({
+      'agent.mode': mode,
+      'agent.model': modelInfo.name,
+      'agent.prompt_variant': promptVariant ?? '',
+    });
+    const trace = await startRun(
+      {
+        userId: opts.userId,
+        workspaceSlug: opts.workspace.slug,
+        question: opts.question,
+        mode,
+        model: modelInfo.name,
+        promptVariant,
+        source: opts.source,
+        evalRun: opts.evalRun,
+      },
+      opts.onStep
+    );
+    span.setAttribute('agent.run_id', trace.runId);
 
-  const started = Date.now();
-  const common = {
-    workspace: opts.workspace,
-    model: modelInfo.model,
-    schemaOptions,
-    onStep: trace.onStep,
-  };
-  const result =
-    mode === 'agent'
-      ? await runAgent(opts.question, {
-          ...common,
-          promptVariant: promptVariant as PromptVariant,
-          maxRetries: opts.maxRetries,
-          summarize: opts.summarize,
-        })
-      : await runSingleShot(opts.question, common);
-  const latencyMs = Date.now() - started;
-  await trace.finish(result, latencyMs);
-  return { ...result, runId: trace.runId, latencyMs };
+    const onStep = async (step: AgentStep) => {
+      recordStepSpan(
+        `agent.step.${step.type}`,
+        step.latencyMs,
+        {
+          'agent.run_id': trace.runId,
+          'agent.tool': step.toolName,
+          'gen_ai.usage.input_tokens': step.inputTokens,
+          'gen_ai.usage.output_tokens': step.outputTokens,
+        },
+        step.error
+      );
+      if (step.toolName && ['run_sql', 'get_schema', 'search_documents'].includes(step.type)) {
+        recordToolCall(step.toolName, !step.error);
+      }
+      await trace.onStep(step);
+    };
+
+    const started = Date.now();
+    const common = { workspace: opts.workspace, model: modelInfo.model, schemaOptions, onStep };
+    const result =
+      mode === 'agent'
+        ? await runAgent(opts.question, {
+            ...common,
+            promptVariant: promptVariant as PromptVariant,
+            maxRetries: opts.maxRetries,
+            summarize: opts.summarize,
+          })
+        : await runSingleShot(opts.question, common);
+    const latencyMs = Date.now() - started;
+    await trace.finish(result, latencyMs);
+    recordAgentRun(latencyMs, { mode, status: result.status });
+    span.setAttributes({ 'agent.status': result.status, 'agent.attempts': result.attempts.length });
+    span.end();
+    return { ...result, runId: trace.runId, latencyMs };
+  });
 }

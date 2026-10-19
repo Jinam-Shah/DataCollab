@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { runReadonlyQuery, type QueryResult } from '../services/readonlyQuery';
 import type { Workspace } from '../services/workspaceService';
 import { getStore } from './store';
+import { recordCacheLookup } from '../observability/metrics';
 
 export function cacheTtlSeconds(): number {
   return Number(process.env.QUERY_CACHE_TTL_SECONDS ?? 300);
@@ -46,12 +47,14 @@ export async function runCachedQuery(
     const hit = await store.get(key);
     if (hit) {
       stats.hits++;
+      recordCacheLookup(true);
       return { ...(JSON.parse(hit) as QueryResult), cached: true };
     }
   } catch {
     // A cache outage must not break queries; fall through to the database.
   }
   stats.misses++;
+  recordCacheLookup(false);
   const result = await runReadonlyQuery(sql, workspace, { page, pageSize });
   // Only successful results are cached; errors and timeouts are retried against the database.
   if (result.success) await store.set(key, JSON.stringify(result), ttl).catch(() => {});
