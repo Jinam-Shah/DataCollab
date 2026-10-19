@@ -100,3 +100,9 @@ Each entry: the problem, the options, the choice, and why.
 - **Choice:** Vercel Hobby for the static frontend; Render free web service (Docker) for the API; Neon Free for PostgreSQL with pgvector; Upstash Free for Redis. All four have maintained Terraform providers (Vercel and Render partner-tier, Neon and Upstash community), so they are all defined in `infra/terraform`.
 - **Free-tier constraints that changed the design:** Render offers no free background workers, so the API ingests uploads itself; `INGEST_QUEUE=inline` keeps BullMQ from polling Upstash all day and using up its 500K monthly commands; `SEED_DEMO=true` replaces a one-off seed command; Render and Neon both sleep when idle, so the first request after a while takes about a minute.
 - **Deploy gate:** `deploy.yml` runs only after CI passes on `main` (`workflow_run`), using a Render deploy hook and the Vercel CLI, instead of each platform's auto-deploy on every push.
+
+## D16. Default system prompt: A, after the A/B comparison
+
+- **Problem:** two SQL-writing prompts were written: a short rules list (A) and a longer guide with PostgreSQL tips (B).
+- **Result:** on the 40-question eval with a local 7B model, A with column profiles scored 82.5% and B scored 77.5% (3 vs 1 discordant questions, McNemar p = 0.625, not significant).
+- **Choice:** A is the default (`AGENT_PROMPT_VARIANT=B` switches). The longer prompt cost more tokens and did not help this model. The result should be re-checked with Gemini.

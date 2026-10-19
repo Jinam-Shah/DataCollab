@@ -208,7 +208,7 @@ type State = typeof AgentState.State;
 
 export function buildAgentGraph(opts: AgentOptions) {
   const maxRetries = opts.maxRetries ?? DEFAULT_MAX_RETRIES;
-  const variant = opts.promptVariant ?? 'B';
+  const variant = opts.promptVariant ?? 'A';
   const tools = makeTools({
     workspace: opts.workspace,
     model: opts.model,

@@ -1,7 +1,7 @@
 // Evaluation harness: npm run eval -- [options]
 //
 //   --mode agent|single_shot   which pipeline to evaluate (default agent)
-//   --variant A|B              system prompt for the agent's SQL step (default B)
+//   --variant A|B              system prompt for the agent's SQL step (default A)
 //   --profiles on|off          column statistics in get_schema (default on)
 //   --set <file>               question file (default eval/questions.jsonl)
 //   --ids e01,m02              only these questions
@@ -103,7 +103,7 @@ export function summarize(results: QuestionResult[]) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const mode = (args.mode || 'agent') as 'agent' | 'single_shot';
-  const variant = (args.variant || 'B') as PromptVariant;
+  const variant = (args.variant || 'A') as PromptVariant;
   const includeProfiles = (args.profiles || 'on') !== 'off';
   const setFile = path.resolve(args.set || path.join(__dirname, 'questions.jsonl'));
   const label =

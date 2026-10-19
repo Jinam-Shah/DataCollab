@@ -23,7 +23,8 @@ export interface AskOptions {
 }
 
 export function defaultPromptVariant(): PromptVariant {
-  return process.env.AGENT_PROMPT_VARIANT === 'A' ? 'A' : 'B';
+  // A beat B on the eval set (82.5% vs 77.5%, not significant; see METRICS.md), so A is the default.
+  return process.env.AGENT_PROMPT_VARIANT === 'B' ? 'B' : 'A';
 }
 
 export async function ask(
