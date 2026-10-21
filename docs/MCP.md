@@ -13,7 +13,7 @@ workspace through an API token and exposes four read-only tools:
 
 ## 1. Create a token
 
-In the app, open the dashboard and use **MCP access → Create token**, or call the API:
+In the app, open **Integrations → Access tokens → Create token** (the page also generates the client config with the token filled in), or call the API:
 
 ```bash
 curl -X POST http://localhost:5000/api/tokens \

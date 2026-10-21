@@ -1,119 +1,127 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import { getSocket } from '../../services/socket';
 import { getUser } from '../../utils/auth';
+import { Icon } from '../ui';
 
-function ChatSidebar() {
+const formatTime = (ts) =>
+  new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const formatDay = (ts) =>
+  new Date(ts).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+// Workspace chat. Messages are saved on the server and pushed live to everyone in the workspace.
+function ChatSidebar({ onClose, visible = true }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-  const currentUser = getUser();
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const endRef = useRef(null);
+  const me = getUser()?.username;
 
   useEffect(() => {
-    loadMessages();
-
+    api
+      .get('/api/chat/messages?limit=100')
+      .then((res) => setMessages(res.data.messages))
+      .catch(() => setError('Could not load messages'));
     const socket = getSocket();
-    if (socket) {
-      socket.on('chat:message', handleNewMessage);
-    }
-
-    return () => {
-      if (socket) {
-        socket.off('chat:message', handleNewMessage);
-      }
-    };
+    if (!socket) return undefined;
+    const onMessage = (m) =>
+      setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, m]));
+    socket.on('chat:message', onMessage);
+    return () => socket.off('chat:message', onMessage);
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (visible) endRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [messages, visible]);
 
-  const loadMessages = async () => {
-    try {
-      const response = await api.get('/api/chat/messages?limit=50');
-      setMessages(response.data.messages);
-    } catch (error) {
-      console.error('Load messages error:', error);
-    }
-  };
-
-  const handleNewMessage = (message) => {
-    setMessages((prev) => [...prev, message]);
-  };
-
-  const handleSendMessage = async (e) => {
+  const send = async (e) => {
     e.preventDefault();
-
-    if (!newMessage.trim() || loading) return;
-
-    setLoading(true);
-
+    if (!newMessage.trim() || sending) return;
+    setSending(true);
+    setError('');
     try {
       await api.post('/api/chat/messages', { message: newMessage });
       setNewMessage('');
-    } catch (error) {
-      console.error('Send message error:', error);
-      alert('Failed to send message');
+    } catch {
+      setError('Message not sent. Try again.');
     } finally {
-      setLoading(false);
+      setSending(false);
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   return (
-    <div className="bg-white rounded-lg shadow h-full flex flex-col">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-bold text-gray-900">Team Chat</h2>
-        <p className="text-xs text-gray-500">Workspace collaboration</p>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between px-4 h-14 border-b border-slate-200">
+        <div>
+          <h2 className="font-semibold text-slate-900">Team chat</h2>
+          <p className="text-xs text-slate-500">Everyone in your workspace sees these messages</p>
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-800"
+            aria-label="Close chat"
+          >
+            <Icon name="x" />
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 text-sm py-8">
-            No messages yet. Start the conversation!
+          <div className="text-center text-slate-500 text-sm py-10">
+            No messages yet. Say hello to your team.
           </div>
         )}
-
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`${
-              msg.username === currentUser?.username ? 'ml-auto bg-blue-100' : 'mr-auto bg-gray-100'
-            } max-w-[80%] rounded-lg p-3`}
-          >
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="font-medium text-sm text-gray-900">{msg.username}</span>
-              <span className="text-xs text-gray-500">{formatTime(msg.sent_at)}</span>
-            </div>
-            <p className="text-sm text-gray-800 break-words">{msg.message}</p>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
+        {messages.map((msg, i) => {
+          const mine = msg.username === me;
+          const newDay = i === 0 || formatDay(messages[i - 1].sent_at) !== formatDay(msg.sent_at);
+          return (
+            <React.Fragment key={msg.id}>
+              {newDay && (
+                <div className="text-center text-xs text-slate-400 py-2">
+                  {formatDay(msg.sent_at)}
+                </div>
+              )}
+              <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                {!mine && (
+                  <span className="text-xs font-medium text-slate-600 ml-1">{msg.username}</span>
+                )}
+                <div
+                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm break-words ${
+                    mine
+                      ? 'bg-indigo-600 text-white rounded-br-sm'
+                      : 'bg-slate-100 text-slate-900 rounded-bl-sm'
+                  }`}
+                >
+                  {msg.message}
+                </div>
+                <span className="text-[11px] text-slate-400 mx-1 mt-0.5">
+                  {formatTime(msg.sent_at)}
+                </span>
+              </div>
+            </React.Fragment>
+          );
+        })}
+        <div ref={endRef} />
       </div>
 
-      <form onSubmit={handleSendMessage} className="p-4 border-t">
+      <form onSubmit={send} className="p-3 border-t border-slate-200">
+        {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
         <div className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            disabled={loading}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            disabled={sending}
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           <button
             type="submit"
-            disabled={loading || !newMessage.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition text-sm font-medium"
+            disabled={sending || !newMessage.trim()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:bg-slate-300"
           >
             Send
           </button>

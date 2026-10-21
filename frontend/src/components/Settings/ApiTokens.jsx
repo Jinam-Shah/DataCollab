@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { Button, Card, CardHeader } from '../ui';
 
 // Workspace API tokens for MCP clients. A new token is shown once and never again.
-function ApiTokens() {
+function ApiTokens({ onCreated }) {
   const [tokens, setTokens] = useState([]);
   const [name, setName] = useState('');
   const [created, setCreated] = useState(null);
@@ -15,56 +16,66 @@ function ApiTokens() {
   const create = async () => {
     const res = await api.post('/api/tokens', { name: name || 'MCP client' });
     setCreated(res.data.token.token);
+    onCreated?.(res.data.token.token);
     setName('');
     load();
   };
 
   const revoke = async (id) => {
+    if (!window.confirm('Revoke this token? Apps using it lose access immediately.')) return;
     await api.delete(`/api/tokens/${id}`);
     load();
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6" data-testid="api-tokens">
-      <h2 className="text-xl font-bold text-gray-900 mb-1">MCP access</h2>
-      <p className="text-sm text-gray-600 mb-3">
-        Tokens let an MCP client (for example Claude Desktop) list tables and run read-only queries
-        in this workspace.
-      </p>
-      <div className="flex gap-2 mb-3">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Token name"
-          aria-label="Token name"
-          className="flex-1 px-3 py-1 border rounded"
-        />
-        <button onClick={create} className="bg-gray-800 text-white px-3 py-1 rounded">
-          Create token
-        </button>
-      </div>
-      {created && (
-        <div
-          className="bg-yellow-50 border border-yellow-300 rounded p-2 text-sm mb-3"
-          role="status"
-        >
-          Copy this token now; it will not be shown again:
-          <code className="block font-mono break-all mt-1">{created}</code>
+    <Card data-testid="api-tokens">
+      <CardHeader
+        title="Access tokens"
+        subtitle="A token works like a password for one app. It can only read this workspace."
+      />
+      <div className="p-5">
+        <div className="flex gap-2 mb-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Token name, e.g. Claude Desktop"
+            aria-label="Token name"
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <Button onClick={create}>Create token</Button>
         </div>
-      )}
-      <ul className="text-sm divide-y">
-        {tokens.map((t) => (
-          <li key={t.id} className="py-1 flex justify-between">
-            <span>
-              {t.name} <span className="text-gray-500 font-mono">{t.token_prefix}…</span>
-            </span>
-            <button onClick={() => revoke(t.id)} className="text-red-600 hover:underline">
-              Revoke
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
+        {created && (
+          <div
+            className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm mb-3"
+            role="status"
+          >
+            Copy this token now; it will not be shown again. It has been added to the setup snippet
+            above.
+            <code className="block font-mono break-all mt-1 text-slate-900">{created}</code>
+          </div>
+        )}
+        {tokens.length === 0 ? (
+          <p className="text-sm text-slate-500">No tokens yet.</p>
+        ) : (
+          <ul className="text-sm divide-y divide-slate-100 border border-slate-200 rounded-lg">
+            {tokens.map((t) => (
+              <li key={t.id} className="px-3 py-2 flex justify-between items-center">
+                <span>
+                  <span className="font-medium text-slate-900">{t.name}</span>{' '}
+                  <span className="text-slate-500 font-mono">{t.token_prefix}…</span>
+                </span>
+                <button
+                  onClick={() => revoke(t.id)}
+                  className="text-red-600 text-xs font-medium hover:underline"
+                >
+                  Revoke
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
   );
 }
 

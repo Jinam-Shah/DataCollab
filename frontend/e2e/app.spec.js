@@ -18,6 +18,8 @@ test('sign up, upload a CSV, read the quality report, query, chart and ask the a
   ).toBeVisible();
 
   // Query in the editor
+  await page.getByRole('button', { name: 'Query this table' }).click();
+  await expect(page).toHaveURL(/\/app\/sql/);
   await page.getByRole('button', { name: 'Count rows' }).click();
   await page.getByRole('button', { name: 'Run Query' }).click();
   await expect(page.getByText('Results (1 rows)')).toBeVisible();
@@ -32,6 +34,7 @@ test('sign up, upload a CSV, read the quality report, query, chart and ask the a
   await expect(page.locator('.recharts-bar-rectangle').first()).toBeVisible();
 
   // Agent with the scripted LLM: the first SQL has a typo, the second is correct.
+  await page.getByRole('link', { name: 'Ask AI' }).click();
   await page.getByLabel('Question').fill('What is the total amount per region?');
   await page.getByRole('button', { name: 'Ask' }).click();
   const steps = page.getByTestId('agent-steps');
@@ -43,6 +46,7 @@ test('sign up, upload a CSV, read the quality report, query, chart and ask the a
   );
   await expect(result).toContainText('2 attempt(s)');
   await result.getByRole('button', { name: 'Open in editor' }).click();
+  await expect(page).toHaveURL(/\/app\/sql/);
   await page.getByRole('button', { name: 'Run Query' }).click();
   await expect(page.getByText('Results (3 rows)')).toBeVisible();
 
@@ -56,6 +60,7 @@ test('blocks writes from the SQL editor', async ({ page }) => {
   await signUp(page, uniqueUser(`ws-${Date.now().toString(36)}-w`));
   await uploadCsv(page, fixture('sales.csv'));
   await expect(page.getByTestId('quality-report')).toBeVisible();
+  await page.getByRole('button', { name: 'Query this table' }).click();
   // Wait for Monaco to finish loading before typing, or the keystrokes are lost.
   const editor = page.locator('.monaco-editor .view-lines').first();
   await expect(editor).toBeVisible();
@@ -66,4 +71,29 @@ test('blocks writes from the SQL editor', async ({ page }) => {
   await expect(editor).toContainText('DELETE FROM sales');
   await page.getByRole('button', { name: 'Run Query' }).click();
   await expect(page.getByText(/Only SELECT queries are allowed/)).toBeVisible();
+});
+
+test('a Markdown document can be uploaded and read on the Documents page', async ({ page }) => {
+  await signUp(page, uniqueUser(`ws-${Date.now().toString(36)}-d`));
+  await page.getByRole('link', { name: 'Documents' }).click();
+  await page.locator('#document-input').setInputFiles({
+    name: 'dictionary.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from('# Columns\n\nThe region column is the sales territory.\n'),
+  });
+  const viewer = page.getByTestId('document-viewer');
+  await expect(viewer).toContainText('dictionary.md');
+  await expect(viewer).toContainText('The region column is the sales territory.');
+  await expect(page.getByTestId('documents-panel')).toContainText('dictionary.md');
+});
+
+test('the Integrations page creates a token and puts it in the setup snippet', async ({ page }) => {
+  await signUp(page, uniqueUser(`ws-${Date.now().toString(36)}-t`));
+  await page.getByRole('link', { name: 'Integrations' }).click();
+  await page.getByLabel('Token name').fill('Claude Desktop');
+  await page.getByRole('button', { name: 'Create token' }).click();
+  const token = await page.getByRole('status').locator('code').textContent();
+  expect(token).toMatch(/^dc_/);
+  await expect(page.locator('pre').filter({ hasText: 'mcp-remote' })).toContainText(token);
+  await expect(page.getByTestId('api-tokens')).toContainText('Claude Desktop');
 });

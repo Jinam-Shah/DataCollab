@@ -106,3 +106,9 @@ Each entry: the problem, the options, the choice, and why.
 - **Problem:** two SQL-writing prompts were written: a short rules list (A) and a longer guide with PostgreSQL tips (B).
 - **Result:** on the 40-question eval with a local 7B model, A with column profiles scored 82.5% and B scored 77.5% (3 vs 1 discordant questions, McNemar p = 0.625, not significant).
 - **Choice:** A is the default (`AGENT_PROMPT_VARIANT=B` switches). The longer prompt cost more tokens and did not help this model. The result should be re-checked with Gemini.
+
+## D17. Frontend: one page per task instead of a single dashboard
+
+- **Problem:** the single dashboard stacked upload, file details, SQL, the agent, documents and tokens on one page. Clicking a table pushed its details below the grid, documents looked like they vanished after upload (they are not tables, so the file list never showed them), and the token panel gave no context.
+- **Choice:** a sidebar layout with routes `/app/data[/:fileId]`, `/app/sql`, `/app/ask`, `/app/documents[/:docId]`, `/app/history`, `/app/integrations`; team chat is a drawer on every page. Selections live in the URL, so links can be shared and the back button works. Old `/dashboard` and `/runs` links redirect.
+- **Also fixed:** the socket was created in the dashboard's effect, after children had already subscribed to a null socket, so live list updates could be missed. The layout now creates it before its children render.

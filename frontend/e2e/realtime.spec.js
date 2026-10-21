@@ -22,13 +22,19 @@ test('an upload and a chat message in one session appear live in another session
   await expect(pageA.getByTestId('quality-report')).toBeVisible();
 
   // Bob's file list refreshes from the socket event, without reloading.
-  await expect(pageB.getByText('sales.csv')).toBeVisible();
+  await expect(pageB.getByTestId('table-list').getByText('sales.csv')).toBeVisible();
+  // ...and Bob gets a notification about it.
+  await expect(pageB.getByText(/uploaded sales\.csv/)).toBeVisible();
+
+  // Team chat lives in a drawer opened from the top bar.
+  await pageA.getByRole('button', { name: 'Team chat' }).click();
+  await pageB.getByRole('button', { name: 'Team chat' }).click();
 
   await pageA.getByPlaceholder(/message/i).fill('hello from alice');
   await pageA.getByPlaceholder(/message/i).press('Enter');
   await expect(pageB.getByText('hello from alice')).toBeVisible();
 
-  await expect(pageE.getByText('sales.csv')).toHaveCount(0);
+  await expect(pageE.getByText(/sales\.csv/)).toHaveCount(0);
   await expect(pageE.getByText('hello from alice')).toHaveCount(0);
 
   await alice.close();
