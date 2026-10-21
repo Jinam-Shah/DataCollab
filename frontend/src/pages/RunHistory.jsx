@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { Badge, Card, CardHeader, EmptyState, PageHeader } from '../components/ui';
 
 const show = (value) => {
   if (value === null || value === undefined) return '';
@@ -26,78 +26,80 @@ function RunHistory() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Agent run history</h1>
-          <Link to="/dashboard" className="text-blue-600 underline">
-            Back to dashboard
-          </Link>
-        </div>
-      </nav>
-      <div className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          {error && <p className="text-red-700">{error}</p>}
-          {runs.length === 0 && !error && <p className="text-gray-600">No runs yet.</p>}
-          <ul className="divide-y">
+    <div>
+      <PageHeader
+        title="Run history"
+        description="Every question asked to the AI in this workspace (from the app or from an MCP client), with each step it took, the prompts it sent and the time it spent."
+      />
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-6 items-start">
+        <Card>
+          <CardHeader title="Runs" subtitle={`${runs.length} most recent`} />
+          {error && <p className="p-4 text-sm text-red-700">{error}</p>}
+          {runs.length === 0 && !error && (
+            <p className="p-6 text-sm text-slate-500 text-center">No runs yet.</p>
+          )}
+          <ul className="divide-y divide-slate-100">
             {runs.map((r) => (
               <li key={r.id}>
                 <button
                   onClick={() => openRun(r.id)}
-                  className="w-full text-left py-2 hover:bg-gray-50"
+                  className={`w-full text-left px-4 py-3 ${selected?.run.id === r.id ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
                 >
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-gray-900">{r.question}</span>
-                    <span className={r.status === 'answered' ? 'text-green-700' : 'text-red-700'}>
-                      {r.status}
-                    </span>
+                  <div className="flex justify-between gap-2 text-sm">
+                    <span className="font-medium text-slate-900">{r.question}</span>
+                    <Badge color={r.status === 'answered' ? 'green' : 'red'}>{r.status}</Badge>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    #{r.id} · {r.mode} · {r.model} · {r.attempts} attempt(s) · {r.latency_ms} ms ·{' '}
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    #{r.id} · {r.mode} · {r.attempts} attempt(s) · {r.latency_ms} ms ·{' '}
                     {r.username || r.source}
                   </div>
                 </button>
               </li>
             ))}
           </ul>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4" data-testid="run-detail">
-          {!selected && <p className="text-gray-600">Select a run to see its steps.</p>}
-          {selected && (
-            <div>
-              <h2 className="font-bold text-gray-900 mb-1">{selected.run.question}</h2>
-              <p className="text-sm text-gray-700 mb-3">{selected.run.answer}</p>
+        </Card>
+
+        <Card data-testid="run-detail">
+          {!selected ? (
+            <EmptyState icon="history" title="Select a run">
+              See every step the agent took for that question.
+            </EmptyState>
+          ) : (
+            <div className="p-5">
+              <h2 className="font-semibold text-slate-900">{selected.run.question}</h2>
+              <p className="text-sm text-slate-700 mt-1 mb-1">{selected.run.answer}</p>
+              <p className="text-xs text-slate-500 mb-4">Model {selected.run.model}</p>
               <ol className="space-y-3">
                 {selected.steps.map((s) => (
-                  <li key={s.step_index} className="border rounded p-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="font-medium">
+                  <li key={s.step_index} className="border border-slate-200 rounded-lg p-3 text-sm">
+                    <div className="flex justify-between gap-2">
+                      <span className="font-medium text-slate-900">
                         {s.step_index + 1}. {s.step_type}
                         {s.tool_name ? ` → ${s.tool_name}` : ''}
                       </span>
-                      <span className="text-gray-500">
+                      <span className="text-xs text-slate-500">
                         {s.latency_ms} ms
                         {s.input_tokens ? ` · ${s.input_tokens}/${s.output_tokens} tok` : ''}
                       </span>
                     </div>
-                    {s.error && <p className="text-red-700">{s.error}</p>}
+                    {s.error && <p className="text-red-700 mt-1">{s.error}</p>}
                     {s.tool_input && (
-                      <pre className="bg-gray-100 text-xs p-2 mt-1 rounded overflow-x-auto">
+                      <pre className="bg-slate-50 text-xs p-2 mt-2 rounded overflow-x-auto">
                         {show(s.tool_input)}
                       </pre>
                     )}
                     {s.prompt && (
-                      <details className="mt-1">
-                        <summary className="cursor-pointer text-gray-600">Prompt</summary>
-                        <pre className="bg-gray-50 text-xs p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs text-slate-500">Prompt</summary>
+                        <pre className="bg-slate-50 text-xs p-2 rounded overflow-x-auto whitespace-pre-wrap">
                           {s.prompt}
                         </pre>
                       </details>
                     )}
                     {s.tool_output && (
-                      <details className="mt-1">
-                        <summary className="cursor-pointer text-gray-600">Output</summary>
-                        <pre className="bg-gray-50 text-xs p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs text-slate-500">Output</summary>
+                        <pre className="bg-slate-50 text-xs p-2 rounded overflow-x-auto whitespace-pre-wrap">
                           {show(s.tool_output)}
                         </pre>
                       </details>
@@ -107,7 +109,7 @@ function RunHistory() {
               </ol>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

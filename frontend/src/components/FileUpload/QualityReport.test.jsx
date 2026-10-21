@@ -26,7 +26,7 @@ it('lists warnings and per-column stats', () => {
   expect(screen.getByText('5 rows, 2 columns, 1 duplicate rows')).toBeInTheDocument();
   const amountRow = screen.getByText('amount').closest('tr');
   expect(amountRow).toHaveTextContent('FLOAT20%no-3100');
-  expect(screen.getByText('code').closest('tr')).toHaveClass('bg-orange-50');
+  expect(screen.getByText('code').closest('tr')).toHaveClass('bg-amber-50');
 });
 
 it('renders nothing without a report', () => {

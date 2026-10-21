@@ -102,3 +102,21 @@ it('shows citations and opens the source passage', async () => {
   expect(await screen.findByText('The cause value "All causes" is a total.')).toBeInTheDocument();
   expect(api.get).toHaveBeenCalledWith('/api/documents/2/chunks/4');
 });
+
+it('keeps earlier answers in the conversation', async () => {
+  api.post
+    .mockResolvedValueOnce({
+      data: { status: 'answered', answer: 'First answer', sql: null, attempts: [], runId: 1 },
+    })
+    .mockResolvedValueOnce({
+      data: { status: 'answered', answer: 'Second answer', sql: null, attempts: [], runId: 2 },
+    });
+  render(<AgentPanel />);
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText('Question'), 'one?{Enter}');
+  await screen.findByText('First answer');
+  await user.type(screen.getByLabelText('Question'), 'two?{Enter}');
+  expect(await screen.findByTestId('agent-result')).toHaveTextContent('Second answer');
+  expect(screen.getByText('First answer')).toBeInTheDocument();
+  expect(screen.getAllByTestId('agent-result')).toHaveLength(1);
+});

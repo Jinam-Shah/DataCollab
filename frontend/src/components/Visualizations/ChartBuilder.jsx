@@ -32,7 +32,7 @@ function ChartBuilder({ queryResults }) {
   const renderChart = () => {
     if (!xAxis || !yAxis) {
       return (
-        <div className="text-center py-8 text-gray-600">Select X and Y axes to create a chart</div>
+        <div className="text-center py-8 text-slate-500">Select X and Y axes to create a chart</div>
       );
     }
 
@@ -99,17 +99,17 @@ function ChartBuilder({ queryResults }) {
   };
 
   return (
-    <div className="mt-6 bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Visualize Results</h3>
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <h3 className="text-sm font-semibold text-slate-900 mb-4">Chart these results</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Chart Type</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Chart Type</label>
           <select
             value={chartType}
             onChange={(e) => setChartType(e.target.value)}
             aria-label="Chart type"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="bar">Bar Chart</option>
             <option value="line">Line Chart</option>
@@ -118,12 +118,12 @@ function ChartBuilder({ queryResults }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">X-Axis (Labels)</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">X-Axis (Labels)</label>
           <select
             value={xAxis}
             onChange={(e) => setXAxis(e.target.value)}
             aria-label="X axis"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Select column...</option>
             {columns.map((col) => (
@@ -135,12 +135,12 @@ function ChartBuilder({ queryResults }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Y-Axis (Values)</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Y-Axis (Values)</label>
           <select
             value={yAxis}
             onChange={(e) => setYAxis(e.target.value)}
             aria-label="Y axis"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Select column...</option>
             {columns.map((col) => (
@@ -152,10 +152,10 @@ function ChartBuilder({ queryResults }) {
         </div>
       </div>
 
-      <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">{renderChart()}</div>
+      <div className="border border-slate-300 rounded-lg p-4 bg-slate-50">{renderChart()}</div>
 
       {data.length > 20 && (
-        <p className="text-sm text-gray-600 mt-2">Showing first 20 rows for visualization</p>
+        <p className="text-sm text-slate-500 mt-2">Showing first 20 rows for visualization</p>
       )}
     </div>
   );

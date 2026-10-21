@@ -21,6 +21,8 @@ Object.assign(process.env, {
   LLM_PROVIDER: 'fake',
   FAKE_LLM_SCRIPT: path.join(__dirname, '..', '..', 'frontend', 'e2e', 'fake-llm.json'),
   REDIS_URL: '',
+  // Deterministic embeddings, so the documents test needs no model download.
+  EMBEDDINGS_PROVIDER: 'hash',
   UPLOAD_DIR: path.join(require('os').tmpdir(), 'datacollab-e2e-uploads'),
 });
 

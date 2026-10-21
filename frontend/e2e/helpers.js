@@ -18,7 +18,7 @@ export async function signUp(page, user) {
   await page.getByLabel('Password').fill(user.password);
   await page.getByLabel(/Workspace ID/).fill(user.workspace);
   await page.getByRole('button', { name: 'Sign Up' }).click();
-  await expect(page).toHaveURL(/dashboard/);
+  await expect(page).toHaveURL(/\/app\/data/);
   await expect(page.getByText(`Workspace: ${user.workspace}`)).toBeVisible();
 }
 

@@ -20,8 +20,8 @@ function Citations({ citations }) {
   };
 
   return (
-    <div className="mt-3" data-testid="citations">
-      <p className="text-xs font-medium text-gray-700 mb-1">Sources</p>
+    <div className="border-t border-slate-100 pt-3" data-testid="citations">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Sources</p>
       <ol className="space-y-1">
         {citations.map((c) => (
           <li key={c.n} className="text-xs">
@@ -31,7 +31,7 @@ function Citations({ citations }) {
               {c.section ? `, ${c.section}` : ''}
             </button>
             {open === c.n && (
-              <blockquote className="mt-1 border-l-2 border-indigo-300 pl-2 text-gray-700 whitespace-pre-wrap">
+              <blockquote className="mt-1 border-l-2 border-indigo-300 pl-2 text-slate-700 whitespace-pre-wrap">
                 {chunk ? chunk.content : 'Loading...'}
               </blockquote>
             )}
