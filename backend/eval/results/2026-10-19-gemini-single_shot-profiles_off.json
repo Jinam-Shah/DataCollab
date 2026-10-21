@@ -1,0 +1,789 @@
+{
+  "label": "gemini-single_shot-profiles_off",
+  "date": "2026-10-19T23:03:28.073Z",
+  "model": "gemini:gemini-3.5-flash-lite",
+  "mode": "single_shot",
+  "promptVariant": null,
+  "includeProfiles": false,
+  "questionSet": "questions.jsonl",
+  "command": "npm run eval -- --mode single_shot --profiles off --label gemini-single_shot-profiles_off",
+  "summary": {
+    "all": {
+      "n": 40,
+      "correct": 37,
+      "wrong": 3,
+      "error": 0,
+      "accuracy": 0.925,
+      "medianLatencyMs": 578,
+      "meanAttempts": 1
+    },
+    "easy": {
+      "n": 12,
+      "correct": 12,
+      "wrong": 0,
+      "error": 0,
+      "accuracy": 1,
+      "medianLatencyMs": 508,
+      "meanAttempts": 1
+    },
+    "medium": {
+      "n": 15,
+      "correct": 15,
+      "wrong": 0,
+      "error": 0,
+      "accuracy": 1,
+      "medianLatencyMs": 605,
+      "meanAttempts": 1
+    },
+    "hard": {
+      "n": 13,
+      "correct": 10,
+      "wrong": 3,
+      "error": 0,
+      "accuracy": 0.7692307692307693,
+      "medianLatencyMs": 643,
+      "meanAttempts": 1
+    }
+  },
+  "results": [
+    {
+      "id": "e01",
+      "difficulty": "easy",
+      "categories": [
+        "aggregation"
+      ],
+      "question": "How many earthquakes are in the earthquakes table?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT count(*) FROM \"earthquakes\"",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 585,
+      "inputTokens": 959,
+      "outputTokens": 8,
+      "runId": 1260
+    },
+    {
+      "id": "e02",
+      "difficulty": "easy",
+      "categories": [
+        "aggregation"
+      ],
+      "question": "What was the largest earthquake magnitude recorded in 2024?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT MAX(\"magnitude\") FROM \"earthquakes\" WHERE EXTRACT(YEAR FROM \"time\") = 2024",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 976,
+      "inputTokens": 964,
+      "outputTokens": 25,
+      "runId": 1261
+    },
+    {
+      "id": "e03",
+      "difficulty": "easy",
+      "categories": [
+        "aggregation"
+      ],
+      "question": "What is the average earthquake depth in kilometers?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT AVG(\"depth_km\") FROM \"earthquakes\"",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 558,
+      "inputTokens": 959,
+      "outputTokens": 12,
+      "runId": 1262
+    },
+    {
+      "id": "e04",
+      "difficulty": "easy",
+      "categories": [
+        "filter"
+      ],
+      "question": "How many earthquakes had a magnitude of 7 or more?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT COUNT(*) FROM \"earthquakes\" WHERE \"magnitude\" >= 7",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 568,
+      "inputTokens": 962,
+      "outputTokens": 15,
+      "runId": 1263
+    },
+    {
+      "id": "e05",
+      "difficulty": "easy",
+      "categories": [
+        "order_limit"
+      ],
+      "question": "Which state had the largest population in 2019?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"state\" FROM \"state_population\" ORDER BY \"pop_2019\" DESC LIMIT 1",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 552,
+      "inputTokens": 963,
+      "outputTokens": 24,
+      "runId": 1264
+    },
+    {
+      "id": "e06",
+      "difficulty": "easy",
+      "categories": [
+        "filter"
+      ],
+      "question": "How many states (including DC) are in the West region?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT COUNT(*) FROM \"state_population\" WHERE \"region\" = 'West'",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 500,
+      "inputTokens": 963,
+      "outputTokens": 17,
+      "runId": 1265
+    },
+    {
+      "id": "e07",
+      "difficulty": "easy",
+      "categories": [
+        "distinct"
+      ],
+      "question": "List all the distinct causes of death in the dataset.",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT DISTINCT \"cause\" FROM \"causes_of_death\"",
+      "referenceRows": 11,
+      "predictedRows": 11,
+      "attempts": 1,
+      "latencyMs": 455,
+      "inputTokens": 961,
+      "outputTokens": 13,
+      "runId": 1266
+    },
+    {
+      "id": "e08",
+      "difficulty": "easy",
+      "categories": [
+        "aggregation"
+      ],
+      "question": "What was the combined 2019 population of all states plus DC?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT SUM(\"pop_2019\") FROM \"state_population\"",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 476,
+      "inputTokens": 966,
+      "outputTokens": 16,
+      "runId": 1267
+    },
+    {
+      "id": "e09",
+      "difficulty": "easy",
+      "categories": [
+        "order_limit"
+      ],
+      "question": "What are the event ids of the 5 deepest earthquakes, deepest first?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"event_id\" FROM \"earthquakes\" ORDER BY \"depth_km\" DESC NULLS LAST LIMIT 5",
+      "referenceRows": 5,
+      "predictedRows": 5,
+      "attempts": 1,
+      "latencyMs": 578,
+      "inputTokens": 965,
+      "outputTokens": 25,
+      "runId": 1268
+    },
+    {
+      "id": "e10",
+      "difficulty": "easy",
+      "categories": [
+        "distinct"
+      ],
+      "question": "How many different magnitude types appear in the earthquake data?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT COUNT(DISTINCT \"mag_type\") FROM \"earthquakes\"",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 426,
+      "inputTokens": 961,
+      "outputTokens": 15,
+      "runId": 1269
+    },
+    {
+      "id": "e11",
+      "difficulty": "easy",
+      "categories": [
+        "filter"
+      ],
+      "question": "What was Texas's population in 2010?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"pop_2010\" FROM \"state_population\" WHERE \"state\" = 'Texas'",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 508,
+      "inputTokens": 963,
+      "outputTokens": 23,
+      "runId": 1270
+    },
+    {
+      "id": "e12",
+      "difficulty": "easy",
+      "categories": [
+        "aggregation"
+      ],
+      "question": "What is the smallest magnitude in the earthquakes table?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT MIN(\"magnitude\") FROM \"earthquakes\"",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 475,
+      "inputTokens": 960,
+      "outputTokens": 10,
+      "runId": 1271
+    },
+    {
+      "id": "m01",
+      "difficulty": "medium",
+      "categories": [
+        "date",
+        "group_by"
+      ],
+      "question": "How many earthquakes happened in each month of 2024? Return the month number (1-12) and the count.",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT EXTRACT(MONTH FROM \"time\") AS \"month\", COUNT(*) AS \"count\" FROM \"earthquakes\" WHERE EXTRACT(YEAR FROM \"time\") = 2024 GROUP BY EXTRACT(MONTH FROM \"time\") ORDER BY \"month\"",
+      "referenceRows": 12,
+      "predictedRows": 12,
+      "attempts": 1,
+      "latencyMs": 4570,
+      "inputTokens": 978,
+      "outputTokens": 54,
+      "runId": 1272
+    },
+    {
+      "id": "m02",
+      "difficulty": "medium",
+      "categories": [
+        "date",
+        "order_limit"
+      ],
+      "question": "Which month of 2024 (as a number 1-12) had the most earthquakes?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT EXTRACT(MONTH FROM \"time\") AS \"month\", COUNT(*) AS \"earthquake_count\" FROM \"earthquakes\" WHERE EXTRACT(YEAR FROM \"time\") = 2024 GROUP BY \"month\" ORDER BY \"earthquake_count\" DESC LIMIT 1",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 526,
+      "inputTokens": 973,
+      "outputTokens": 60,
+      "runId": 1273
+    },
+    {
+      "id": "m03",
+      "difficulty": "medium",
+      "categories": [
+        "group_by"
+      ],
+      "question": "How many earthquakes did each seismic network report?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"network\", COUNT(*) FROM \"earthquakes\" GROUP BY \"network\"",
+      "referenceRows": 9,
+      "predictedRows": 9,
+      "attempts": 1,
+      "latencyMs": 459,
+      "inputTokens": 959,
+      "outputTokens": 16,
+      "runId": 1274
+    },
+    {
+      "id": "m04",
+      "difficulty": "medium",
+      "categories": [
+        "filter",
+        "aggregation"
+      ],
+      "question": "What is the average magnitude of earthquakes deeper than 300 km?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT AVG(\"magnitude\") FROM \"earthquakes\" WHERE \"depth_km\" > 300",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 665,
+      "inputTokens": 965,
+      "outputTokens": 21,
+      "runId": 1275
+    },
+    {
+      "id": "m05",
+      "difficulty": "medium",
+      "categories": [
+        "date",
+        "filter"
+      ],
+      "question": "How many earthquakes occurred in March 2024?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT COUNT(*) FROM \"earthquakes\" WHERE \"time\" >= '2024-03-01 00:00:00' AND \"time\" < '2024-04-01 00:00:00'",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 651,
+      "inputTokens": 962,
+      "outputTokens": 60,
+      "runId": 1276
+    },
+    {
+      "id": "m06",
+      "difficulty": "medium",
+      "categories": [
+        "text_match"
+      ],
+      "question": "How many earthquakes have Japan in their place description?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT count(*) FROM \"earthquakes\" WHERE \"place\" LIKE '%Japan%'",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 532,
+      "inputTokens": 960,
+      "outputTokens": 16,
+      "runId": 1277
+    },
+    {
+      "id": "m07",
+      "difficulty": "medium",
+      "categories": [
+        "order_limit",
+        "ambiguous"
+      ],
+      "question": "What were the 3 leading causes of death in the United States as a whole in 2017, by number of deaths? Do not count the 'All causes' total.",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"cause\" FROM \"causes_of_death\" WHERE \"state\" = 'United States' AND \"year\" = 2017 AND \"cause\" != 'All causes' ORDER BY \"deaths\" DESC LIMIT 3",
+      "referenceRows": 3,
+      "predictedRows": 3,
+      "attempts": 1,
+      "latencyMs": 3862,
+      "inputTokens": 988,
+      "outputTokens": 49,
+      "runId": 1278
+    },
+    {
+      "id": "m08",
+      "difficulty": "medium",
+      "categories": [
+        "filter",
+        "aggregation"
+      ],
+      "question": "What is the total number of cancer deaths in California across all years in the data?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT SUM(\"deaths\") FROM \"causes_of_death\" WHERE \"state\" = 'California' AND \"cause\" ILIKE '%cancer%'",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 429,
+      "inputTokens": 967,
+      "outputTokens": 31,
+      "runId": 1279
+    },
+    {
+      "id": "m09",
+      "difficulty": "medium",
+      "categories": [
+        "order_limit"
+      ],
+      "question": "Which state had the highest age-adjusted death rate for heart disease in 2017?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"state\" FROM \"causes_of_death\" WHERE \"year\" = 2017 AND \"cause\" ILIKE '%heart disease%' ORDER BY \"age_adjusted_death_rate\" DESC LIMIT 1",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 605,
+      "inputTokens": 970,
+      "outputTokens": 49,
+      "runId": 1280
+    },
+    {
+      "id": "m10",
+      "difficulty": "medium",
+      "categories": [
+        "group_by"
+      ],
+      "question": "What is the average 2019 population per state in each Census region?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"region\", AVG(\"pop_2019\") AS \"avg_2019_population\" FROM \"state_population\" GROUP BY \"region\"",
+      "referenceRows": 4,
+      "predictedRows": 4,
+      "attempts": 1,
+      "latencyMs": 451,
+      "inputTokens": 967,
+      "outputTokens": 35,
+      "runId": 1281
+    },
+    {
+      "id": "m11",
+      "difficulty": "medium",
+      "categories": [
+        "group_by",
+        "having"
+      ],
+      "question": "Which magnitude types were used for more than 100 earthquakes, and how many each?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"mag_type\", COUNT(*) AS \"earthquake_count\" FROM \"earthquakes\" GROUP BY \"mag_type\" HAVING COUNT(*) > 100 ORDER BY \"earthquake_count\" DESC",
+      "referenceRows": 3,
+      "predictedRows": 3,
+      "attempts": 1,
+      "latencyMs": 815,
+      "inputTokens": 969,
+      "outputTokens": 44,
+      "runId": 1282
+    },
+    {
+      "id": "m12",
+      "difficulty": "medium",
+      "categories": [
+        "date",
+        "order_limit"
+      ],
+      "question": "What is the event id of the first earthquake in December 2024?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"event_id\" FROM \"earthquakes\" WHERE \"time\" >= '2024-12-01 00:00:00' AND \"time\" < '2025-01-01 00:00:00' ORDER BY \"time\" ASC LIMIT 1",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 623,
+      "inputTokens": 967,
+      "outputTokens": 72,
+      "runId": 1283
+    },
+    {
+      "id": "m13",
+      "difficulty": "medium",
+      "categories": [
+        "filter"
+      ],
+      "question": "How many earthquakes in the Southern Hemisphere had a magnitude of at least 6?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT count(*) FROM \"earthquakes\" WHERE \"latitude\" < 0 AND \"magnitude\" >= 6",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 549,
+      "inputTokens": 966,
+      "outputTokens": 22,
+      "runId": 1284
+    },
+    {
+      "id": "m14",
+      "difficulty": "medium",
+      "categories": [
+        "case_sensitivity"
+      ],
+      "question": "How many earthquakes were reported by the AK network?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT COUNT(*) FROM \"earthquakes\" WHERE \"network\" = 'ak'",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 576,
+      "inputTokens": 960,
+      "outputTokens": 16,
+      "runId": 1285
+    },
+    {
+      "id": "m15",
+      "difficulty": "medium",
+      "categories": [
+        "date",
+        "filter"
+      ],
+      "question": "How many earthquakes happened on January 1, 2024 (UTC)?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT count(*) FROM \"earthquakes\" WHERE \"time\" >= '2024-01-01 00:00:00' AND \"time\" < '2024-01-02 00:00:00'",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 759,
+      "inputTokens": 967,
+      "outputTokens": 60,
+      "runId": 1286
+    },
+    {
+      "id": "h01",
+      "difficulty": "hard",
+      "categories": [
+        "join",
+        "group_by"
+      ],
+      "question": "What were the total deaths from all causes in 2017 in each Census region?",
+      "verdict": "wrong",
+      "reason": "expected 4 row(s), got 4",
+      "predictedSql": "SELECT \"state_population\".\"region\", SUM(\"causes_of_death\".\"deaths\") AS \"total_deaths\" FROM \"causes_of_death\" JOIN \"state_population\" ON \"causes_of_death\".\"state\" = \"state_population\".\"state\" WHERE \"causes_of_death\".\"year\" = 2017 GROUP BY \"state_population\".\"region\"",
+      "referenceRows": 4,
+      "predictedRows": 4,
+      "attempts": 1,
+      "latencyMs": 923,
+      "inputTokens": 969,
+      "outputTokens": 81,
+      "runId": 1287
+    },
+    {
+      "id": "h02",
+      "difficulty": "hard",
+      "categories": [
+        "join",
+        "ratio",
+        "order_limit"
+      ],
+      "question": "Which 5 states had the most unintentional injury deaths per 100,000 people in 2017, using the 2017 population estimate? Highest first.",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT t1.\"state\" FROM \"causes_of_death\" AS t1 JOIN \"state_population\" AS t2 ON t1.\"state\" = t2.\"state\" WHERE t1.\"year\" = 2017 AND t1.\"cause\" = 'Unintentional injuries' AND t1.\"state\" != 'United States' ORDER BY (t1.\"deaths\"::FLOAT / t2.\"pop_2017\" * 100000) DESC LIMIT 5",
+      "referenceRows": 5,
+      "predictedRows": 5,
+      "attempts": 1,
+      "latencyMs": 688,
+      "inputTokens": 990,
+      "outputTokens": 107,
+      "runId": 1288
+    },
+    {
+      "id": "h03",
+      "difficulty": "hard",
+      "categories": [
+        "join",
+        "order_limit"
+      ],
+      "question": "Which Census region had the most suicide deaths in 2015?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"state_population\".\"region\" FROM \"state_population\" JOIN \"causes_of_death\" ON \"state_population\".\"state\" = \"causes_of_death\".\"state\" WHERE \"causes_of_death\".\"year\" = 2015 AND \"causes_of_death\".\"cause\" = 'Suicide' GROUP BY \"state_population\".\"region\" ORDER BY SUM(\"causes_of_death\".\"deaths\") DESC LIMIT 1",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 656,
+      "inputTokens": 965,
+      "outputTokens": 96,
+      "runId": 1289
+    },
+    {
+      "id": "h04",
+      "difficulty": "hard",
+      "categories": [
+        "ratio"
+      ],
+      "question": "What percentage of the earthquakes had a magnitude of 6 or more? Give a percentage between 0 and 100.",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \n    (CAST(SUM(CASE WHEN \"magnitude\" >= 6 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*)) * 100 \nFROM \"earthquakes\"",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 515,
+      "inputTokens": 976,
+      "outputTokens": 44,
+      "runId": 1290
+    },
+    {
+      "id": "h05",
+      "difficulty": "hard",
+      "categories": [
+        "date",
+        "group_by"
+      ],
+      "question": "For each month of 2024, what was the largest earthquake magnitude? Return the month number (1-12) and the magnitude.",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT EXTRACT(MONTH FROM \"time\") AS month, MAX(\"magnitude\") AS max_magnitude FROM \"earthquakes\" WHERE EXTRACT(YEAR FROM \"time\") = 2024 GROUP BY EXTRACT(MONTH FROM \"time\") ORDER BY month",
+      "referenceRows": 12,
+      "predictedRows": 12,
+      "attempts": 1,
+      "latencyMs": 643,
+      "inputTokens": 981,
+      "outputTokens": 54,
+      "runId": 1291
+    },
+    {
+      "id": "h06",
+      "difficulty": "hard",
+      "categories": [
+        "self_join",
+        "order_limit"
+      ],
+      "question": "Which state had the largest increase in Alzheimer's disease deaths from 1999 to 2017?",
+      "verdict": "wrong",
+      "reason": "expected 1 row(s), got 1",
+      "predictedSql": "SELECT \"state\" FROM \"causes_of_death\" WHERE \"cause\" = 'Alzheimer''s disease' AND \"year\" = 2017 ORDER BY \"deaths\" - (SELECT \"deaths\" FROM \"causes_of_death\" AS t2 WHERE t2.\"state\" = \"causes_of_death\".\"state\" AND t2.\"cause\" = 'Alzheimer''s disease' AND t2.\"year\" = 1999) DESC LIMIT 1",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 748,
+      "inputTokens": 975,
+      "outputTokens": 103,
+      "runId": 1292
+    },
+    {
+      "id": "h07",
+      "difficulty": "hard",
+      "categories": [
+        "subquery"
+      ],
+      "question": "How many states had an age-adjusted heart disease death rate in 2017 above the national United States rate?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT COUNT(*) FROM \"causes_of_death\" WHERE \"year\" = 2017 AND \"cause\" = 'Heart disease' AND \"state\" != 'United States' AND \"age_adjusted_death_rate\" > (SELECT \"age_adjusted_death_rate\" FROM \"causes_of_death\" WHERE \"year\" = 2017 AND \"cause\" = 'Heart disease' AND \"state\" = 'United States')",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 635,
+      "inputTokens": 975,
+      "outputTokens": 97,
+      "runId": 1293
+    },
+    {
+      "id": "h08",
+      "difficulty": "hard",
+      "categories": [
+        "date",
+        "order_limit"
+      ],
+      "question": "On which date in 2024 (UTC) were the most earthquakes recorded, and how many were there?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT CAST(\"time\" AS DATE) AS earthquake_date, COUNT(*) AS earthquake_count FROM \"earthquakes\" WHERE EXTRACT(YEAR FROM \"time\") = 2024 GROUP BY CAST(\"time\" AS DATE) ORDER BY earthquake_count DESC LIMIT 1",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 517,
+      "inputTokens": 974,
+      "outputTokens": 57,
+      "runId": 1294
+    },
+    {
+      "id": "h09",
+      "difficulty": "hard",
+      "categories": [
+        "ratio",
+        "group_by"
+      ],
+      "question": "What share of the total 2019 population (as a percentage) lived in each Census region?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"region\", (SUM(\"pop_2019\") * 100.0) / (SELECT SUM(\"pop_2019\") FROM \"state_population\") AS \"population_share_percentage\" FROM \"state_population\" GROUP BY \"region\"",
+      "referenceRows": 4,
+      "predictedRows": 4,
+      "attempts": 1,
+      "latencyMs": 1140,
+      "inputTokens": 972,
+      "outputTokens": 59,
+      "runId": 1295
+    },
+    {
+      "id": "h10",
+      "difficulty": "hard",
+      "categories": [
+        "self_join",
+        "order_limit"
+      ],
+      "question": "Nationally, which cause of death (not counting 'All causes') grew the most in number of deaths between 1999 and 2017?",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"cause\" FROM \"causes_of_death\" WHERE \"state\" = 'United States' AND \"year\" = 2017 AND \"cause\" != 'All causes' ORDER BY (\"deaths\" - (SELECT \"deaths\" FROM \"causes_of_death\" AS c2 WHERE c2.\"state\" = 'United States' AND c2.\"year\" = 1999 AND c2.\"cause\" = \"causes_of_death\".\"cause\")) DESC LIMIT 1",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 611,
+      "inputTokens": 984,
+      "outputTokens": 105,
+      "runId": 1296
+    },
+    {
+      "id": "h11",
+      "difficulty": "hard",
+      "categories": [
+        "filter",
+        "order_limit"
+      ],
+      "question": "List the states in the South region with more than 10 million people in 2019, largest first.",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"state\" FROM \"state_population\" WHERE \"region\" = 'South' AND \"pop_2019\" > 10000000 ORDER BY \"pop_2019\" DESC",
+      "referenceRows": 4,
+      "predictedRows": 4,
+      "attempts": 1,
+      "latencyMs": 582,
+      "inputTokens": 975,
+      "outputTokens": 48,
+      "runId": 1297
+    },
+    {
+      "id": "h12",
+      "difficulty": "hard",
+      "categories": [
+        "empty_result"
+      ],
+      "question": "List the event ids of earthquakes with a magnitude above 9.",
+      "verdict": "correct",
+      "reason": "",
+      "predictedSql": "SELECT \"event_id\" FROM \"earthquakes\" WHERE \"magnitude\" > 9",
+      "referenceRows": 0,
+      "predictedRows": 0,
+      "attempts": 1,
+      "latencyMs": 510,
+      "inputTokens": 963,
+      "outputTokens": 18,
+      "runId": 1298
+    },
+    {
+      "id": "h13",
+      "difficulty": "hard",
+      "categories": [
+        "ambiguous"
+      ],
+      "question": "How many people died in Texas in 2016?",
+      "verdict": "wrong",
+      "reason": "expected 1 row(s), got 1",
+      "predictedSql": "SELECT SUM(\"deaths\") FROM \"causes_of_death\" WHERE \"state\" = 'Texas' AND \"year\" = 2016",
+      "referenceRows": 1,
+      "predictedRows": 1,
+      "attempts": 1,
+      "latencyMs": 1688,
+      "inputTokens": 963,
+      "outputTokens": 31,
+      "runId": 1299
+    }
+  ]
+}

@@ -10,9 +10,9 @@ citations to documents. The same tools are available to any MCP client.
 
 ![Dashboard](./screenshots/dashboard.png)
 
-**Live demo:** not deployed yet. `infra/terraform` defines the free-tier hosting (Vercel, Render,
-Neon, Upstash); see [Deployment](#deployment). Once it is live, the demo login is
-`demo@datacollab.dev` / `demo1234`. The free tier sleeps when idle, so the first request can take about a minute.
+**Live demo:** https://data-collab.vercel.app · demo login `demo@datacollab.dev` / `demo1234`.
+Hosted on free tiers (Vercel, Render, Neon); the API sleeps when idle, so the first request can
+take about a minute.
 
 ---
 
@@ -80,15 +80,16 @@ All numbers are measured; commands and environments are in [METRICS.md](METRICS.
 
 | What | Result |
 |---|---|
-| Agent accuracy, 40-question eval set (local `qwen2.5-coder:7b`) | single-shot 77.5% → agent 80.0% → agent + column profiles **82.5%** (hard questions 38.5% → 53.8%); prompt B 77.5%. Differences are not significant (McNemar p ≥ 0.625). |
+| Agent accuracy, 40-question eval set, Gemini (`gemini-3.5-flash-lite`) | single-shot 92.5% → agent **95.0%** (hard questions 76.9% → 84.6%), median 1.1 s per question |
+| Same eval, local `qwen2.5-coder:7b` | single-shot 77.5% → agent 80.0% → agent + column profiles 82.5% |
+| Significance | no configuration difference is significant on 40 questions for either model (McNemar p ≥ 0.5); the model choice matters far more |
 | Document retrieval hit rate @5, held-out questions | hybrid **80%** vs vector-only 60% (MRR 0.602 vs 0.567) |
 | CSV ingest | 100,000 rows in 2.5 s end to end; the API answers the upload in about 50 ms (background job) |
 | Query cache | p95 126.6 ms → **15.5 ms**, 108 → 997 req/s (aggregate over 100K rows, 10 connections) |
 | Tests | 136 backend (Jest + Supertest, real PostgreSQL and Redis), 14 frontend (Vitest), 3 end-to-end (Playwright, including a two-browser real-time sync test) |
 
 The eval set is a fixed development set used while building the agent, so it shows differences
-between configurations, not expected accuracy on new questions. No Gemini key was available in
-the build environment; rerun `npm run eval` with `LLM_PROVIDER=gemini` for Gemini numbers.
+between configurations, not expected accuracy on new questions.
 
 ![Grafana dashboard](./screenshots/grafana-dashboard.png)
 
@@ -119,7 +120,7 @@ App: http://localhost:3000 · API: http://localhost:5000. Add the observability 
 ### Without Docker
 
 Prerequisites: Node.js 22, PostgreSQL 16 with the `pgvector` extension, optionally Redis, and a
-[Gemini API key](https://aistudio.google.com/app/apikey) (free).
+[Gemini API key](https://aistudio.google.com/app/apikey) (free). Set `GEMINI_MODEL=gemini-3.5-flash-lite` for the highest free-tier rate limit.
 
 ```bash
 # Backend
@@ -175,8 +176,8 @@ validation and `terraform validate` on every push and pull request.
 
 - Workspace membership is self-asserted: anyone who registers with a workspace ID joins it.
 - JWTs live in `localStorage` for 7 days; refresh tokens in httpOnly cookies are not implemented.
-- Eval numbers come from a local 7B model on a 40-question development set; Gemini results and a held-out SQL set are still to do.
-- The kind cluster and the free-tier deployment are defined and validated but have not been run end to end yet.
+- Eval numbers come from a 40-question development set; a held-out SQL question set is still to do.
+- The kind cluster is defined and validated but has not been run end to end yet. The live deployment was set up by hand in the provider dashboards; `infra/terraform` has not been applied.
 - On free hosting, uploads are ingested in the API process, and an upload in progress is lost if the instance spins down.
 - The frontend bundle is about 915 KB gzipped because Monaco is bundled.
 
