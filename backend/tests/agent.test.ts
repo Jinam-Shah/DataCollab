@@ -1,4 +1,5 @@
 // Agent tools and graph, with a scripted LLM against a real PostgreSQL workspace.
+import { summarizePrompt } from '../agent/prompts';
 import { ensureWorkspace, type Workspace } from '../services/workspaceService';
 import { makeTools } from '../agent/tools';
 import {
@@ -262,5 +263,20 @@ describe('tracing', () => {
     expect(write.prompt).toContain('Highest salary?');
     expect(write.tool_input).toEqual({ sql: 'SELECT max(salary) AS top FROM employees' });
     expect(write.input_tokens).toBe(10);
+  });
+});
+
+describe('summarizePrompt', () => {
+  it('sends numeric strings from PostgreSQL as numbers', () => {
+    const messages = summarizePrompt({
+      question: 'Deaths?',
+      sql: 'SELECT 1',
+      columns: ['cause', 'deaths', 'code'],
+      rows: [{ cause: 'Cancer', deaths: '599108', code: '007a' }],
+      rowCount: 1,
+    });
+    const text = String(messages[1].content);
+    expect(text).toContain('"deaths":599108');
+    expect(text).toContain('"code":"007a"');
   });
 });

@@ -31,6 +31,9 @@ Every number here was measured, not estimated. Each row lists the date, the envi
 | 2026-10-19 | Eval: Gemini agent, prompt B, with column profiles | 36/40 (90.0%); hard 9/13 (69.2%); median 1.3 s | same | `... --mode agent --variant B --profiles on --label gemini-agent-B-profiles_on` |
 | 2026-10-19 | McNemar exact test, Gemini runs | single-shot vs agent A: 1 vs 2 discordant, p = 1.000; profiles off vs on: 2 vs 0, p = 0.500; prompt A vs B: 1 vs 1, p = 1.000. None significant | same | `analysis/agent_runs.ipynb`, section 4 |
 | 2026-10-19 | Gemini free-tier rate limits (measured with a new key) | `gemini-3.8-flash`: 5 requests/min; `gemini-3.5-flash-lite`: 15 requests/min (`GenerateRequestsPerMinutePerProjectPerModel-FreeTier`) | Gemini API | burst of `generateContent` calls until HTTP 429, reading the quota violation |
+| 2026-10-21 | Backend automated tests (after the per-table tabs, row browsing, CSV download and scoped AI questions) | 144 tests in 13 suites, all passing; coverage 76.7% lines, 69.8% branches | Same container, PostgreSQL 16 + Redis 7 local | `cd backend && npm run test:coverage` |
+| 2026-10-21 | Frontend component tests | 22 tests in 9 files, all passing; coverage 48.0% lines, 49.2% branches | Same container, jsdom | `cd frontend && npm run test:coverage` |
+| 2026-10-21 | End-to-end tests | 6 Playwright tests (main flow incl. all-rows browsing, CSV download, per-table SQL and Ask AI; write blocked; document upload and viewer; MCP token snippet; Ask AI source picker; two-session real-time sync), all passing on 2 consecutive runs | Same container, Playwright 1.56.1, Chromium | `cd frontend && npx playwright test` |
 
 ## Notes on the evaluation numbers
 

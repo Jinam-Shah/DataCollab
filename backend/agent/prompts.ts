@@ -123,14 +123,28 @@ export function summarizePrompt(input: {
   hasMore?: boolean;
   excerpts?: string;
 }): BaseMessage[] {
-  const shown = input.rows.slice(0, 20);
+  // PostgreSQL returns bigint and numeric as strings; pass them as numbers so the model does not
+  // copy the JSON quotes into its answer ("647457" instead of 647,457).
+  const shown = input.rows
+    .slice(0, 20)
+    .map((row) =>
+      Object.fromEntries(
+        Object.entries(row).map(([k, v]) => [
+          k,
+          typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v) && Number.isFinite(Number(v))
+            ? Number(v)
+            : v,
+        ])
+      )
+    );
   const docs = input.excerpts
     ? `\n\nDocument excerpts (cite as [n] when you use them):\n${input.excerpts}`
     : '';
   return [
     new SystemMessage(
       'Answer the question in 1-3 plain-English sentences using only the query result. ' +
-        'Quote the key numbers exactly. If the result is empty, say that no matching rows were found. ' +
+        'Quote the key numbers exactly, without quotation marks and with thousands separators. ' +
+        'If the result is empty, say that no matching rows were found. ' +
         'Do not mention SQL.'
     ),
     new HumanMessage(

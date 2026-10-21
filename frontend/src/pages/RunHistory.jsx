@@ -47,7 +47,9 @@ function RunHistory() {
                 >
                   <div className="flex justify-between gap-2 text-sm">
                     <span className="font-medium text-slate-900">{r.question}</span>
-                    <Badge color={r.status === 'answered' ? 'green' : 'red'}>{r.status}</Badge>
+                    <span className="shrink-0 self-start">
+                      <Badge color={r.status === 'answered' ? 'green' : 'red'}>{r.status}</Badge>
+                    </span>
                   </div>
                   <div className="text-xs text-slate-500 mt-0.5">
                     #{r.id} · {r.mode} · {r.attempts} attempt(s) · {r.latency_ms} ms ·{' '}
