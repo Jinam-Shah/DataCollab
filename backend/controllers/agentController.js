@@ -2,10 +2,39 @@ const pool = require('../config/database');
 const { ensureWorkspace } = require('../services/workspaceService');
 const { ask } = require('../agent/service');
 
-// POST /api/agent/ask  { question, mode?: 'agent' | 'single_shot', requestId? }
+const isIdList = (v) =>
+  Array.isArray(v) &&
+  v.length <= 100 &&
+  v.every((x) => Number.isInteger(Number(x)) && Number(x) > 0);
+
+// Turns the selected file and document ids into an agent scope. Ids from another workspace are
+// dropped, so a request cannot reach outside the caller's workspace.
+async function resolveScope(workspaceSlug, fileIds, documentIds) {
+  if (fileIds === undefined && documentIds === undefined) return undefined;
+  const scope = { tables: [], documentIds: [] };
+  if (fileIds?.length) {
+    const { rows } = await pool.query(
+      `SELECT table_name FROM csv_files
+        WHERE workspace_id = $1 AND id = ANY($2::bigint[]) AND status = 'ready'`,
+      [workspaceSlug, fileIds.map(Number)]
+    );
+    scope.tables = rows.map((r) => r.table_name);
+  }
+  if (documentIds?.length) {
+    const { rows } = await pool.query(
+      'SELECT id::int AS id FROM documents WHERE workspace_id = $1 AND id = ANY($2::bigint[])',
+      [workspaceSlug, documentIds.map(Number)]
+    );
+    scope.documentIds = rows.map((r) => r.id);
+  }
+  return scope;
+}
+
+// POST /api/agent/ask  { question, mode?: 'agent' | 'single_shot', requestId?, fileIds?, documentIds? }
+// fileIds/documentIds limit the run to those tables and documents; omit both to use everything.
 // Steps stream to the caller's sockets as `agent:step` events while the run is in progress.
 exports.ask = async (req, res) => {
-  const { question, mode = 'agent', requestId = null } = req.body || {};
+  const { question, mode = 'agent', requestId = null, fileIds, documentIds } = req.body || {};
   if (!question || typeof question !== 'string' || !question.trim()) {
     return res.status(400).json({ error: 'Question is required' });
   }
@@ -15,14 +44,25 @@ exports.ask = async (req, res) => {
   if (!['agent', 'single_shot'].includes(mode)) {
     return res.status(400).json({ error: "mode must be 'agent' or 'single_shot'" });
   }
+  if (
+    (fileIds !== undefined && !isIdList(fileIds)) ||
+    (documentIds !== undefined && !isIdList(documentIds))
+  ) {
+    return res.status(400).json({ error: 'fileIds and documentIds must be lists of ids' });
+  }
 
   try {
     const workspace = await ensureWorkspace(req.workspaceId);
     const emitToUser = req.app.get('emitToUser');
+    const scope = await resolveScope(req.workspaceId, fileIds, documentIds);
+    if (scope && scope.tables.length === 0 && scope.documentIds.length === 0) {
+      return res.status(400).json({ error: 'Select at least one table or document to ask about' });
+    }
     const result = await ask({
       workspace,
       question: question.trim(),
       mode,
+      scope,
       userId: req.userId,
       onStep: (runId, step) =>
         emitToUser(req.userId, 'agent:step', {

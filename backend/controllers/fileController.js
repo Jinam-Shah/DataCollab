@@ -154,6 +154,99 @@ exports.getFileDetails = async (req, res) => {
   }
 };
 
+// Column list for reading a table back: sanitized SQL names plus the header text from the
+// original file (kept in the quality report), so a download has the same headers as the upload.
+async function tableColumns(file) {
+  const { rows } = await pool.query(
+    'SELECT column_name FROM csv_columns WHERE file_id = $1 ORDER BY column_index',
+    [file.id]
+  );
+  const original = new Map((file.quality_report?.columns || []).map((c) => [c.sqlName, c.name]));
+  return rows.map((r) => ({
+    sql: r.column_name,
+    header: original.get(r.column_name) ?? r.column_name,
+  }));
+}
+
+// Values are read as text so dates and numbers come back exactly as PostgreSQL prints them.
+const selectAsText = (file, columns, extra = null) =>
+  `SELECT ${extra ? `${extra}, ` : ''}${columns
+    .map((c) => `${quoteIdent(c.sql)}::text AS ${quoteIdent(c.sql)}`)
+    .join(', ')}
+     FROM ${quoteIdent(file.schema_name)}.${quoteIdent(file.table_name)}`;
+
+// GET /api/files/:id/rows?page=1&pageSize=100  Browse every row of a table, in upload order.
+exports.getRows = async (req, res) => {
+  try {
+    const file = await getFileForWorkspace(req.params.id, req.workspaceId);
+    if (!file) return res.status(404).json({ error: 'File not found' });
+    if (file.status !== 'ready') return res.status(409).json({ error: `File is ${file.status}` });
+    const pageSize = Math.min(500, Math.max(1, parseInt(req.query.pageSize, 10) || 100));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const columns = await tableColumns(file);
+    if (columns.length === 0) {
+      return res.json({ columns: [], rows: [], page, pageSize, total: 0 });
+    }
+    const { rows } = await pool.query(
+      `${selectAsText(file, columns)} ORDER BY row_id LIMIT $1 OFFSET $2`,
+      [pageSize, (page - 1) * pageSize]
+    );
+    res.json({
+      columns: columns.map((c) => c.sql),
+      rows,
+      page,
+      pageSize,
+      total: Number(file.row_count) || 0,
+    });
+  } catch (error) {
+    console.error('Get rows error:', error);
+    res.status(500).json({ error: 'Failed to load rows' });
+  }
+};
+
+const csvCell = (v) => {
+  if (v === null || v === undefined) return '';
+  const s = String(v);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+const DOWNLOAD_BATCH = 5000;
+
+// GET /api/files/:id/download  The table as CSV, rebuilt from the database (uploads are not kept
+// on disk on the free host). Streams in batches by row_id, so memory stays flat for big tables.
+exports.downloadCsv = async (req, res) => {
+  try {
+    const file = await getFileForWorkspace(req.params.id, req.workspaceId);
+    if (!file) return res.status(404).json({ error: 'File not found' });
+    if (file.status !== 'ready') return res.status(409).json({ error: `File is ${file.status}` });
+    const columns = await tableColumns(file);
+    const name = path.basename(file.original_filename).replace(/[^\w.\- ]/g, '_') || 'export.csv';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.write(columns.map((c) => csvCell(c.header)).join(',') + '\r\n');
+    if (columns.length > 0) {
+      let after = 0;
+      for (;;) {
+        const { rows } = await pool.query(
+          `${selectAsText(file, columns, 'row_id')} WHERE row_id > $1 ORDER BY row_id LIMIT $2`,
+          [after, DOWNLOAD_BATCH]
+        );
+        if (rows.length === 0) break;
+        const chunk = rows.map((r) => columns.map((c) => csvCell(r[c.sql])).join(',')).join('\r\n');
+        // Respect backpressure so a slow client does not make the server buffer the whole table.
+        if (!res.write(chunk + '\r\n')) await new Promise((resolve) => res.once('drain', resolve));
+        after = rows[rows.length - 1].row_id;
+        if (rows.length < DOWNLOAD_BATCH) break;
+      }
+    }
+    res.end();
+  } catch (error) {
+    console.error('Download error:', error);
+    if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
+    else res.end();
+  }
+};
+
 // Delete file and its data
 exports.deleteFile = async (req, res) => {
   const client = await pool.connect();

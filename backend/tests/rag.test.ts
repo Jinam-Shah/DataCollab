@@ -115,6 +115,18 @@ describe('document API and search', () => {
     expect(top.keywordRank).not.toBeNull();
   });
 
+  it('searches only the selected documents when given documentIds', async () => {
+    const ws = await ensureWorkspace('rag-team');
+    const query = 'deep earthquakes subduction depth';
+    const onlyMd = await searchDocuments(ws.slug, query, { k: 5, documentIds: [docId] });
+    expect(onlyMd.length).toBeGreaterThan(0);
+    expect(onlyMd.every((h) => h.filename === 'dictionary.md')).toBe(true);
+    for (const mode of ['keyword', 'vector'] as const) {
+      const hits = await searchDocuments(ws.slug, query, { k: 5, mode, documentIds: [docId] });
+      expect(hits.every((h) => h.documentId === docId)).toBe(true);
+    }
+  });
+
   it("does not return other workspaces' passages", async () => {
     const res = await mallory
       .post('/api/documents/search')

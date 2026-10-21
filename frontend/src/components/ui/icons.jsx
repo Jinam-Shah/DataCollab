@@ -48,6 +48,8 @@ const paths = {
       <path d="M5 15V5a2 2 0 012-2h10" />
     </>
   ),
+  download: <path d="M12 4v12M7 11l5 5 5-5M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />,
+  rows: <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />,
   play: <path d="M7 4l13 8-13 8V4z" />,
   arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
 };

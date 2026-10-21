@@ -7,10 +7,24 @@ import { useToast } from '../components/Toasts';
 import ChatSidebar from '../components/Chat/ChatSidebar';
 
 const NAV = [
-  { to: '/app/data', label: 'Data', icon: 'database', hint: 'Upload CSVs and explore tables' },
-  { to: '/app/sql', label: 'SQL', icon: 'code', hint: 'Write and run queries' },
-  { to: '/app/ask', label: 'Ask AI', icon: 'sparkles', hint: 'Questions in plain English' },
-  { to: '/app/documents', label: 'Documents', icon: 'file', hint: 'PDFs and notes for the AI' },
+  {
+    to: '/app/data',
+    label: 'Data',
+    icon: 'database',
+    hint: 'Upload CSVs; browse, query and ask about each table',
+  },
+  {
+    to: '/app/ask',
+    label: 'Ask AI',
+    icon: 'sparkles',
+    hint: 'Questions across several tables and documents',
+  },
+  {
+    to: '/app/documents',
+    label: 'Documents',
+    icon: 'file',
+    hint: 'PDFs and notes the AI can read and cite',
+  },
   { to: '/app/history', label: 'Run history', icon: 'history', hint: 'Every AI run, step by step' },
   {
     to: '/app/integrations',

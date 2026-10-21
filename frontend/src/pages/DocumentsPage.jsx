@@ -11,14 +11,53 @@ import {
   Icon,
   PageHeader,
   Spinner,
+  Tabs,
   formatBytes,
 } from '../components/ui';
-import { useDocuments } from '../hooks/useWorkspaceData';
+import { useDocuments, useFiles } from '../hooks/useWorkspaceData';
+import AgentPanel from '../components/Agent/AgentPanel';
+import SourcePicker from '../components/Agent/SourcePicker';
 import { useToast } from '../components/Toasts';
 
-function DocumentViewer({ id, onDeleted }) {
+// The AI tab of a document: always this document, plus any tables the user adds.
+function AskThisDocument({ doc }) {
+  const { files } = useFiles();
+  const navigate = useNavigate();
+  const [scope, setScope] = useState({ fileIds: [], documentIds: [doc.id] });
+  const firstTable = scope.fileIds[0];
+  return (
+    <div>
+      <SourcePicker
+        files={files}
+        documents={[{ id: doc.id, filename: doc.filename }]}
+        value={scope}
+        onChange={setScope}
+        lockedDocumentId={doc.id}
+      />
+      <AgentPanel
+        scope={scope}
+        intro={`Answers come only from ${doc.filename}${
+          scope.fileIds.length ? ' and the tables you selected' : ''
+        }, with the passages cited. Add a table above to combine it with real numbers.`}
+        suggestions={[
+          `Summarize ${doc.filename}`,
+          'What does each column mean?',
+          'Are there any caveats I should know about?',
+        ]}
+        onOpenSql={
+          firstTable
+            ? (sql) => navigate(`/app/data/${firstTable}/sql?sql=${encodeURIComponent(sql)}`)
+            : undefined
+        }
+      />
+    </div>
+  );
+}
+
+function DocumentViewer({ id, tab, onTab, onDeleted }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const active = tab === 'ask' ? 'ask' : 'passages';
 
   useEffect(() => {
     let cancelled = false;
@@ -64,23 +103,36 @@ function DocumentViewer({ id, onDeleted }) {
           </Button>
         }
       />
+      <Tabs
+        tabs={[
+          { id: 'passages', label: 'Passages' },
+          { id: 'ask', label: 'Ask AI' },
+        ]}
+        active={active}
+        onChange={onTab}
+      />
       <div className="p-5">
-        <p className="text-xs text-slate-500 mb-3">
-          This is the text the AI searches, split into passages. When an answer uses one, it cites
-          it as [1], [2], ...
-        </p>
-        <ol className="space-y-3">
-          {chunks.map((c) => (
-            <li key={c.id} className="border border-slate-200 rounded-lg p-3">
-              <div className="flex gap-2 mb-1.5">
-                <Badge>#{c.chunk_index + 1}</Badge>
-                {c.page && <Badge color="indigo">page {c.page}</Badge>}
-                {c.section && <Badge color="indigo">{c.section}</Badge>}
-              </div>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.content}</p>
-            </li>
-          ))}
-        </ol>
+        {active === 'passages' && (
+          <>
+            <p className="text-xs text-slate-500 mb-3">
+              This is the text the AI searches, split into passages. When an answer uses one, it
+              cites it as [1], [2], ...
+            </p>
+            <ol className="space-y-3">
+              {chunks.map((c) => (
+                <li key={c.id} className="border border-slate-200 rounded-lg p-3">
+                  <div className="flex gap-2 mb-1.5">
+                    <Badge>#{c.chunk_index + 1}</Badge>
+                    {c.page && <Badge color="indigo">page {c.page}</Badge>}
+                    {c.section && <Badge color="indigo">{c.section}</Badge>}
+                  </div>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.content}</p>
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+        {active === 'ask' && <AskThisDocument doc={doc} />}
       </div>
     </Card>
   );
@@ -90,7 +142,7 @@ function DocumentViewer({ id, onDeleted }) {
 // tables and cannot be queried with SQL.
 function DocumentsPage() {
   const { documents, loading, reload } = useDocuments();
-  const { docId } = useParams();
+  const { docId, tab } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
@@ -123,7 +175,7 @@ function DocumentsPage() {
     <div>
       <PageHeader
         title="Documents"
-        description="Give the AI background knowledge: data dictionaries, reports, notes. Documents are not tables; you cannot query them with SQL. Instead, Ask AI searches them and cites the passages it used."
+        description="Give the AI background knowledge: data dictionaries, reports, notes. Documents are not tables; you cannot query them with SQL. Open a document and use its Ask AI tab, and the AI answers from it with the passages cited."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-6 items-start">
@@ -171,7 +223,7 @@ function DocumentsPage() {
                 {documents.map((d) => (
                   <li key={d.id}>
                     <button
-                      onClick={() => navigate(`/app/documents/${d.id}`)}
+                      onClick={() => navigate(`/app/documents/${d.id}${tab ? `/${tab}` : ''}`)}
                       className={`w-full text-left px-4 py-3 flex items-start gap-3 ${
                         selectedId === d.id ? 'bg-indigo-50' : 'hover:bg-slate-50'
                       }`}
@@ -202,6 +254,8 @@ function DocumentsPage() {
             <DocumentViewer
               key={selectedId}
               id={selectedId}
+              tab={tab}
+              onTab={(t) => navigate(`/app/documents/${selectedId}/${t}`)}
               onDeleted={() => {
                 reload();
                 navigate('/app/documents');

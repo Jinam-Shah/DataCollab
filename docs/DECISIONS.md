@@ -112,3 +112,10 @@ Each entry: the problem, the options, the choice, and why.
 - **Problem:** the single dashboard stacked upload, file details, SQL, the agent, documents and tokens on one page. Clicking a table pushed its details below the grid, documents looked like they vanished after upload (they are not tables, so the file list never showed them), and the token panel gave no context.
 - **Choice:** a sidebar layout with routes `/app/data[/:fileId]`, `/app/sql`, `/app/ask`, `/app/documents[/:docId]`, `/app/history`, `/app/integrations`; team chat is a drawer on every page. Selections live in the URL, so links can be shared and the back button works. Old `/dashboard` and `/runs` links redirect.
 - **Also fixed:** the socket was created in the dashboard's effect, after children had already subscribed to a null socket, so live list updates could be missed. The layout now creates it before its children render.
+
+## D18. SQL and AI questions live inside the file they are about
+
+- **Problem:** with a separate SQL page and a workspace-wide Ask AI page, it was not clear which table a query or question was about, and two files with the same column names could be mixed up.
+- **Choice:** each table has tabs for Data quality, Columns, All rows, SQL query and Ask AI; each document has Passages and Ask AI. The Ask AI page remains for questions across files, with a picker that shows exactly which tables and documents are used. `POST /api/agent/ask` takes `fileIds` and `documentIds`; the server keeps only ids from the caller's workspace, the agent's schema tool only describes the selected tables, and document search filters to the selected documents.
+- **Limit:** the scope controls what the model is shown, not what SQL may run; a query that names an unselected table by hand still runs under the same read-only rules as the SQL editor.
+- **Also added:** `GET /api/files/:id/rows` (paged browsing of every row) and `GET /api/files/:id/download` (the table rebuilt as CSV with the original headers, streamed in batches, because uploaded files are not kept on the free host's disk).

@@ -114,13 +114,15 @@ function Turn({ turn, latest, onOpenSql }) {
 }
 
 // Conversation with the data agent. Each question is answered independently; steps stream in
-// over Socket.io while the request runs.
-function AgentPanel({ onOpenSql }) {
+// over Socket.io while the request runs. `scope` ({ fileIds, documentIds }) limits the agent to
+// those tables and documents; without it the agent uses the whole workspace.
+function AgentPanel({ onOpenSql, scope, intro, suggestions = SUGGESTIONS }) {
   const [question, setQuestion] = useState('');
   const [mode, setMode] = useState('agent');
   const [turns, setTurns] = useState([]);
   const endRef = useRef(null);
   const loading = turns.some((t) => t.loading);
+  const nothingSelected = scope && scope.fileIds.length === 0 && scope.documentIds.length === 0;
 
   useEffect(() => {
     const socket = getSocket();
@@ -141,7 +143,7 @@ function AgentPanel({ onOpenSql }) {
     setTurns((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
   const ask = async (text = question) => {
-    if (!text.trim() || loading) return;
+    if (!text.trim() || loading || nothingSelected) return;
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setTurns((prev) => [
       ...prev,
@@ -149,7 +151,12 @@ function AgentPanel({ onOpenSql }) {
     ]);
     setQuestion('');
     try {
-      const response = await api.post('/api/agent/ask', { question: text, mode, requestId: id });
+      const response = await api.post('/api/agent/ask', {
+        question: text,
+        mode,
+        requestId: id,
+        ...(scope && { fileIds: scope.fileIds, documentIds: scope.documentIds }),
+      });
       update(id, { result: response.data, loading: false });
     } catch (err) {
       update(id, {
@@ -172,11 +179,11 @@ function AgentPanel({ onOpenSql }) {
             </div>
             <p className="font-medium text-slate-900">Ask a question about your data</p>
             <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-              The agent reads your table schemas and documents, writes SQL, runs it, and fixes its
-              own mistakes. You see every step.
+              {intro ||
+                'The agent reads your table schemas and documents, writes SQL, runs it, and fixes its own mistakes. You see every step.'}
             </p>
             <div className="flex flex-wrap justify-center gap-2 mt-4">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => setQuestion(s)}
@@ -202,9 +209,13 @@ function AgentPanel({ onOpenSql }) {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && ask()}
-            placeholder="e.g. Which region had the highest total sales in March?"
+            placeholder={
+              nothingSelected
+                ? 'Select at least one table or document first'
+                : 'e.g. Which region had the highest total sales in March?'
+            }
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            disabled={loading}
+            disabled={loading || nothingSelected}
             aria-label="Question"
           />
           <select
@@ -219,7 +230,7 @@ function AgentPanel({ onOpenSql }) {
           </select>
           <button
             onClick={() => ask()}
-            disabled={loading || !question.trim()}
+            disabled={loading || nothingSelected || !question.trim()}
             className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:bg-indigo-300"
           >
             {loading ? 'Thinking...' : 'Ask'}

@@ -11,10 +11,25 @@ import { searchDocuments as searchStore } from '../rag/store';
 
 export const AGENT_ROW_LIMIT = 50;
 
+// Limits a run to the tables and documents the user picked. Undefined means everything in the
+// workspace; an empty list means none of that kind.
+export interface AgentScope {
+  tables?: string[];
+  documentIds?: number[];
+}
+
 export interface ToolContext {
   workspace: Workspace;
   model: BaseChatModel;
   schemaOptions?: SchemaOptions;
+  scope?: AgentScope;
+}
+
+// Tables the model asked for, kept inside the scope. Asking for none means the whole scope.
+export function scopedTables(requested: string[] | undefined, scope?: AgentScope) {
+  if (!scope?.tables) return requested;
+  const inScope = (requested ?? []).filter((t) => scope.tables!.includes(t));
+  return inScope.length ? inScope : scope.tables;
 }
 
 export const getSchemaInput = z.object({
@@ -66,7 +81,12 @@ export type RunQueryOutput =
 export function makeTools(ctx: ToolContext) {
   const getSchema = tool(
     async ({ tables }) => {
-      const schema = await getWorkspaceSchema(ctx.workspace, { ...ctx.schemaOptions, tables });
+      // getWorkspaceSchema reads an empty list as "all tables", so handle "none selected" here.
+      if (ctx.scope?.tables && ctx.scope.tables.length === 0) return 'No tables were selected.';
+      const schema = await getWorkspaceSchema(ctx.workspace, {
+        ...ctx.schemaOptions,
+        tables: scopedTables(tables, ctx.scope),
+      });
       return schemaToText(schema);
     },
     {
@@ -121,7 +141,12 @@ export function makeTools(ctx: ToolContext) {
   );
 
   const searchDocuments = tool(
-    async ({ query, k }) => searchStore(ctx.workspace.slug, query, { mode: 'hybrid', k: k ?? 5 }),
+    async ({ query, k }) =>
+      searchStore(ctx.workspace.slug, query, {
+        mode: 'hybrid',
+        k: k ?? 5,
+        documentIds: ctx.scope?.documentIds ?? null,
+      }),
     {
       name: 'search_documents',
       description:
