@@ -27,7 +27,7 @@ function ChartBuilder({ queryResults }) {
   const columns = queryResults.columns || [];
   const data = queryResults.data;
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
   const renderChart = () => {
     if (!xAxis || !yAxis) {
@@ -51,7 +51,7 @@ function ChartBuilder({ queryResults }) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey={yAxis} fill="#3B82F6" />
+              <Bar dataKey={yAxis} fill="#4F46E5" />
             </BarChart>
           </ResponsiveContainer>
         );
@@ -65,7 +65,7 @@ function ChartBuilder({ queryResults }) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey={yAxis} stroke="#3B82F6" strokeWidth={2} />
+              <Line type="monotone" dataKey={yAxis} stroke="#4F46E5" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         );

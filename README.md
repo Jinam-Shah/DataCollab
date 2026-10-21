@@ -6,9 +6,10 @@
 Teams upload CSVs and documents, query them with SQL or plain English, chart the results and
 chat in real time. An AI agent built with LangGraph.js reads the schema, writes SQL, runs it
 through a read-only safety layer, retries on errors, and answers with the SQL it used and
-citations to documents. The same tools are available to any MCP client.
+citations to documents. You choose exactly which tables and documents it may use. The same
+tools are available to any MCP client.
 
-![Dashboard](./screenshots/dashboard.png)
+![Asking the AI about one table, with a data dictionary as extra context](./screenshots/table-ask.png)
 
 **Live demo:** https://data-collab.vercel.app · demo login `demo@datacollab.dev` / `demo1234`.
 Hosted on free tiers (Vercel, Render, Neon); the API sleeps when idle, so the first request can
@@ -59,10 +60,11 @@ stateDiagram-v2
 **Data**
 - CSV upload with type inference over every row (integer, float, date, timestamp, text) and a **quality report**: empty %, mixed types, duplicates, numeric and date ranges, with warnings before the first query.
 - Files over 1 MB load in the background through **BullMQ**, with live progress over Socket.io and retries with backoff.
-- Monaco SQL editor, paginated results, bar/line/pie charts.
+- Each table has tabs for its quality report, columns, **all rows** (paged), a **SQL editor** (Monaco, paginated results, bar/line/pie charts) and **Ask AI**. **Download CSV** rebuilds the file from the database with the original headers, streamed in batches.
 
 **AI**
 - **Agent** (LangGraph.js, LangChain.js tools with zod schemas, Gemini function calling): plan → schema → SQL → run → check, with up to 3 retries that feed the database error back. Steps stream to the UI; every answer shows its SQL with *Open in editor*.
+- **Scoped questions**: ask from a table or a document page, or pick sources on the Ask AI page. The API takes `fileIds` / `documentIds`, keeps only ids from the caller's workspace, shows the model only the selected tables and searches only the selected documents, so same-named columns in other files cannot get mixed in.
 - **Single-shot** NL-to-SQL kept as a baseline mode.
 - **RAG** over PDF/Markdown/TXT: chunks with page and section references, local `all-MiniLM-L6-v2` embeddings, **hybrid search** (pgvector HNSW + PostgreSQL full-text, reciprocal rank fusion), clickable citations.
 - **Tracing** of every run and step (prompt, tool input/output, error, latency, tokens) in `agent_runs` / `agent_steps`, with a Run history page and an analysis notebook.
@@ -86,7 +88,7 @@ All numbers are measured; commands and environments are in [METRICS.md](METRICS.
 | Document retrieval hit rate @5, held-out questions | hybrid **80%** vs vector-only 60% (MRR 0.602 vs 0.567) |
 | CSV ingest | 100,000 rows in 2.5 s end to end; the API answers the upload in about 50 ms (background job) |
 | Query cache | p95 126.6 ms → **15.5 ms**, 108 → 997 req/s (aggregate over 100K rows, 10 connections) |
-| Tests | 136 backend (Jest + Supertest, real PostgreSQL and Redis), 14 frontend (Vitest), 3 end-to-end (Playwright, including a two-browser real-time sync test) |
+| Tests | 144 backend (Jest + Supertest, real PostgreSQL and Redis; 76.7% line coverage), 22 frontend (Vitest), 6 end-to-end (Playwright, including a two-browser real-time sync test) |
 
 The eval set is a fixed development set used while building the agent, so it shows differences
 between configurations, not expected accuracy on new questions.
@@ -158,7 +160,7 @@ validation and `terraform validate` on every push and pull request.
 ## Deployment
 
 - **Free hosting:** `infra/terraform` defines Neon, Upstash, Render and Vercel. [infra/terraform/README.md](infra/terraform/README.md) lists the steps, including the manual ones.
-- **Continuous deployment:** `.github/workflows/deploy.yml` deploys `main` after CI passes.
+- **Continuous deployment:** `.github/workflows/deploy.yml` deploys `main` after CI passes. It needs the repository secrets `RENDER_DEPLOY_HOOK_URL` (API) and, optionally, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (frontend; otherwise Vercel's own Git integration deploys it). Without a secret, that job is skipped.
 - **Kubernetes:** `make k8s-up` runs everything on a local kind cluster, with an autoscaler on the API. See [k8s/README.md](k8s/README.md).
 
 ## Documentation
@@ -179,17 +181,19 @@ validation and `terraform validate` on every push and pull request.
 - Eval numbers come from a 40-question development set; a held-out SQL question set is still to do.
 - The kind cluster is defined and validated but has not been run end to end yet. The live deployment was set up by hand in the provider dashboards; `infra/terraform` has not been applied.
 - On free hosting, uploads are ingested in the API process, and an upload in progress is lost if the instance spins down.
+- Choosing tables for the AI limits what the model is shown, not what SQL may run: a query that names another table in the workspace by hand still runs, read-only.
 - The frontend bundle is about 915 KB gzipped because Monaco is bundled.
 
 ## Screenshots
 
+Taken from a local run with the demo dataset and Gemini (`gemini-3.5-flash-lite`).
+
 | | |
 |---|---|
-| ![Login](./screenshots/login.png) | ![File upload](./screenshots/file-upload.png) |
-| ![Query editor](./screenshots/query-editor.png) | ![Visualizations](./screenshots/visualizations.png) |
-| ![AI text-to-SQL](./screenshots/ai-text-to-sql.png) | ![Chat](./screenshots/chat.png) |
-
-The screenshots above predate the upgrade (agent panel, quality report and documents panel are newer).
+| ![Data quality report for a table](./screenshots/dashboard.png) | ![Browsing every row of a table](./screenshots/all-rows.png) |
+| ![SQL query tab with results and a chart](./screenshots/sql.png) | ![Ask AI across selected tables and documents](./screenshots/ask-page.png) |
+| ![A document split into passages the AI cites](./screenshots/documents.png) | ![Run history with every agent step](./screenshots/run-history.png) |
+| ![Team chat drawer](./screenshots/chat.png) | ![Integrations: connect Claude through MCP](./screenshots/integrations.png) |
 
 ## Author
 

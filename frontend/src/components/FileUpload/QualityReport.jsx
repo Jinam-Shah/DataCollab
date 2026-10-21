@@ -18,7 +18,8 @@ function QualityReport({ report }) {
   return (
     <div data-testid="quality-report">
       <p className="text-sm text-slate-600 mb-3">
-        {report.rowCount} rows, {report.columnCount} columns, {report.duplicateRows} duplicate rows
+        {report.rowCount.toLocaleString()} rows, {report.columnCount} columns,{' '}
+        {report.duplicateRows.toLocaleString()} duplicate rows
       </p>
 
       {report.warnings.length === 0 ? (
