@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signUp, uniqueUser, uploadCsv, fixture } from './helpers';
+import { signUp, uniqueUser, uploadCsv, fixture, readInviteCode } from './helpers';
 
 test('an upload and a chat message in one session appear live in another session', async ({
   browser,
@@ -10,7 +10,17 @@ test('an upload and a chat message in one session appear live in another session
   const pageA = await alice.newPage();
   const pageB = await bob.newPage();
   await signUp(pageA, uniqueUser(workspace));
-  await signUp(pageB, uniqueUser(workspace));
+  const inviteCode = await readInviteCode(pageA);
+  // Joining without the code is refused.
+  await pageB.goto('/register');
+  await pageB.getByLabel('Username').fill('nocode' + Date.now().toString(36));
+  await pageB.getByLabel('Email').fill(`nocode${Date.now().toString(36)}@test.dev`);
+  await pageB.getByLabel('Password').fill('secret123');
+  await pageB.getByLabel(/Workspace ID/).fill(workspace);
+  await pageB.getByRole('button', { name: 'Sign Up' }).click();
+  await expect(pageB.getByText(/Ask a member for its invite code/)).toBeVisible();
+  await signUp(pageB, { ...uniqueUser(workspace), inviteCode });
+  await expect(pageB.getByTestId('workspace-name')).toContainText(workspace);
 
   // A third user in a different workspace must not see anything.
   const eve = await browser.newContext();

@@ -93,11 +93,15 @@ The checked statement is wrapped as `SELECT * FROM (<sql>) AS dc_result LIMIT <p
 
 ## Known gaps
 
-- **Workspace membership is self-asserted.** Anyone who registers with the workspace string `team1`
-  joins `team1`. Invitations or an owner approval step would fix this; it is a product change outside this phase.
+- **Workspace membership** (fixed 2026-10-21). Joining a workspace that already has members needs its
+  invite code: 12 URL-safe characters from 9 random bytes, compared in constant time and shown only to
+  members on the Team page. Any member can replace the code; the old one stops working at once, but
+  people who already joined keep access (there is no remove-member action yet). A blank workspace at
+  sign-up creates a private one. Existing members were not affected by the change.
 - JWTs are stored in `localStorage` and last 7 days, so an XSS bug would expose them. Refresh tokens in
   httpOnly cookies are an optional item in the plan and are not done yet.
-- No rate limiting yet (Phase 9).
+- Rate limits cover AI and query endpoints (Phase 9) but not sign-up; the invite code's 72 bits make
+  guessing impractical anyway.
 
 ## Tests
 

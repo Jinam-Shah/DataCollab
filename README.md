@@ -75,6 +75,7 @@ stateDiagram-v2
 - **Redis** query cache keyed by data version (never stale) and per-user sliding-window **rate limits**.
 - **OpenTelemetry** traces and metrics with a provisioned **Grafana** dashboard. See [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 - Real-time chat, upload and query events in authenticated per-workspace Socket.io rooms (Redis adapter across replicas).
+- **Invite-only workspaces**: joining a workspace that has members needs its invite code (random, constant-time check), shown on the Team page with the member list; any member can replace it.
 
 ## Results
 
@@ -83,15 +84,17 @@ All numbers are measured; commands and environments are in [METRICS.md](METRICS.
 | What | Result |
 |---|---|
 | Agent accuracy, 40-question eval set, Gemini (`gemini-3.5-flash-lite`) | single-shot 92.5% → agent **95.0%** (hard questions 76.9% → 84.6%), median 1.1 s per question |
+| Held-out set, 20 new questions, Gemini | single-shot 95.0%, agent **95.0%** (19/20 each), in line with the development set |
 | Same eval, local `qwen2.5-coder:7b` | single-shot 77.5% → agent 80.0% → agent + column profiles 82.5% |
 | Significance | no configuration difference is significant on 40 questions for either model (McNemar p ≥ 0.5); the model choice matters far more |
 | Document retrieval hit rate @5, held-out questions | hybrid **80%** vs vector-only 60% (MRR 0.602 vs 0.567) |
 | CSV ingest | 100,000 rows in 2.5 s end to end; the API answers the upload in about 50 ms (background job) |
 | Query cache | p95 126.6 ms → **15.5 ms**, 108 → 997 req/s (aggregate over 100K rows, 10 connections) |
-| Tests | 144 backend (Jest + Supertest, real PostgreSQL and Redis; 76.7% line coverage), 22 frontend (Vitest), 6 end-to-end (Playwright, including a two-browser real-time sync test) |
+| Tests | 150 backend (Jest + Supertest, real PostgreSQL and Redis; 77.0% line coverage), 23 frontend (Vitest), 6 end-to-end (Playwright, including a two-browser real-time sync test with an invite code) |
 
-The eval set is a fixed development set used while building the agent, so it shows differences
-between configurations, not expected accuracy on new questions.
+The 40-question set was used while building the agent, so it shows differences between
+configurations; the 20-question held-out set was written afterwards to check those numbers carry
+over to new questions.
 
 ![Grafana dashboard](./screenshots/grafana-dashboard.png)
 
@@ -151,6 +154,7 @@ cd backend && npm test                 # Jest + Supertest (needs PostgreSQL; TES
 cd frontend && npm test                # Vitest
 cd frontend && npx playwright test     # end to end, starts its own API and frontend
 cd backend && npm run eval             # agent evaluation (see eval/run.ts for options)
+cd backend && npm run eval -- --set eval/sql_holdout.jsonl   # held-out SQL questions
 cd backend && npm run eval:retrieval   # document retrieval evaluation
 ```
 
@@ -176,9 +180,9 @@ validation and `terraform validate` on every push and pull request.
 
 ## Known limitations
 
-- Workspace membership is self-asserted: anyone who registers with a workspace ID joins it.
+- Any member can create a new invite code, but members cannot be removed yet, and there are no owner or admin roles.
 - JWTs live in `localStorage` for 7 days; refresh tokens in httpOnly cookies are not implemented.
-- Eval numbers come from a 40-question development set; a held-out SQL question set is still to do.
+- The held-out SQL set is small (20 questions), so it can only show that the development numbers are not overfitted, not separate configurations.
 - The kind cluster is defined and validated but has not been run end to end yet. The live deployment was set up by hand in the provider dashboards; `infra/terraform` has not been applied.
 - On free hosting, uploads are ingested in the API process, and an upload in progress is lost if the instance spins down.
 - Choosing tables for the AI limits what the model is shown, not what SQL may run: a query that names another table in the workspace by hand still runs, read-only.

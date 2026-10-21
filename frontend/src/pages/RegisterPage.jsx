@@ -9,6 +9,7 @@ function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -22,11 +23,13 @@ function RegisterPage() {
         username,
         email,
         password,
-        workspaceId: workspaceId || 'default',
+        workspaceId: workspaceId.trim() || undefined,
+        inviteCode: inviteCode.trim() || undefined,
       });
       const { token, user } = response.data;
       saveAuthData(token, user);
-      navigate('/app/data');
+      // A new workspace's creator lands on the Team page, where the invite code is.
+      navigate(response.data.inviteCode ? '/app/team' : '/app/data');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -107,8 +110,23 @@ function RegisterPage() {
             disabled={loading}
           />
           <p className="text-xs text-slate-500 mt-1">
-            Teammates who sign up with the same workspace ID share tables, documents and chat.
+            Leave blank for a private workspace. A new name creates that workspace for your team.
           </p>
+        </div>
+        <div>
+          <label htmlFor="reg-invite" className={labelClass}>
+            Invite code <span className="text-slate-400 font-normal">(to join a team)</span>
+          </label>
+          <input
+            id="reg-invite"
+            type="text"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            className={inputClass}
+            placeholder="From a teammate's Team page"
+            autoComplete="off"
+            disabled={loading}
+          />
         </div>
         <button
           type="submit"
