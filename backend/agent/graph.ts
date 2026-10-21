@@ -15,7 +15,7 @@ import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
 import type { AIMessage, BaseMessage } from '@langchain/core/messages';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { Workspace } from '../services/workspaceService';
-import { makeTools, type RunQueryOutput } from './tools';
+import { makeTools, type AgentScope, type RunQueryOutput } from './tools';
 import { listTables, getWorkspaceSchema, schemaToText, type SchemaOptions } from './schema';
 import { hasDocuments, type SearchHit } from '../rag/store';
 import {
@@ -58,6 +58,7 @@ export interface AgentOptions {
   promptVariant?: PromptVariant;
   maxRetries?: number;
   schemaOptions?: SchemaOptions;
+  scope?: AgentScope;
   // Skip the summarize_result LLM call (the eval only scores the SQL result).
   summarize?: boolean;
   onStep?: (step: AgentStep) => void | Promise<void>;
@@ -213,6 +214,7 @@ export function buildAgentGraph(opts: AgentOptions) {
     workspace: opts.workspace,
     model: opts.model,
     schemaOptions: opts.schemaOptions,
+    scope: opts.scope,
   });
   const emit = async (step: AgentStep) => {
     if (opts.onStep) await opts.onStep(step);
@@ -220,18 +222,26 @@ export function buildAgentGraph(opts: AgentOptions) {
 
   const plan = async (state: State) => {
     const started = Date.now();
-    const available = await listTables(opts.workspace);
-    const docsAvailable = await hasDocuments(opts.workspace.slug);
+    const scope = opts.scope;
+    const available = (await listTables(opts.workspace)).filter(
+      (t) => !scope?.tables || scope.tables.includes(t.table)
+    );
+    const docsAvailable = scope?.documentIds
+      ? scope.documentIds.length > 0
+      : await hasDocuments(opts.workspace.slug);
     if (available.length === 0 && !docsAvailable) {
       await emit({
         type: 'plan',
-        message: 'No tables or documents in this workspace',
+        message: scope
+          ? 'Nothing selected to answer from'
+          : 'No tables or documents in this workspace',
         latencyMs: Date.now() - started,
       });
       return {
         route: 'give_up' as const,
-        finalAnswer:
-          'This workspace has no tables or documents yet. Upload a CSV or a document first.',
+        finalAnswer: scope
+          ? 'Select at least one table or document to ask about.'
+          : 'This workspace has no tables or documents yet. Upload a CSV or a document first.',
       };
     }
     const tableList = available.map((t) => `- ${t.table} (${t.rowCount} rows)`).join('\n');
@@ -591,9 +601,9 @@ export async function runAgent(question: string, opts: AgentOptions): Promise<Ag
 /** Baseline: the original single-shot NL-to-SQL (one prompt, one query, no retries). */
 export async function runSingleShot(
   question: string,
-  opts: Pick<AgentOptions, 'workspace' | 'model' | 'schemaOptions' | 'onStep'>
+  opts: Pick<AgentOptions, 'workspace' | 'model' | 'schemaOptions' | 'scope' | 'onStep'>
 ): Promise<AgentResult> {
-  const tools = makeTools({ workspace: opts.workspace, model: opts.model });
+  const tools = makeTools({ workspace: opts.workspace, model: opts.model, scope: opts.scope });
   const base: AgentResult = {
     status: 'error',
     answer: '',
@@ -609,7 +619,15 @@ export async function runSingleShot(
   };
   try {
     const started = Date.now();
-    const schemaText = schemaToText(await getWorkspaceSchema(opts.workspace, opts.schemaOptions));
+    if (opts.scope?.tables && opts.scope.tables.length === 0) {
+      return { ...base, status: 'gave_up', answer: 'Select at least one table to ask about.' };
+    }
+    const schemaText = schemaToText(
+      await getWorkspaceSchema(opts.workspace, {
+        ...opts.schemaOptions,
+        tables: opts.scope?.tables ?? opts.schemaOptions?.tables,
+      })
+    );
     const messages = singleShotMessages(question, schemaText);
     const response = await opts.model.invoke(messages);
     const usage = usageOf(response);

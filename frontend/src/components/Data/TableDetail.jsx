@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { Badge, Button, Card, DataTable, Spinner, Tabs, formatBytes, formatNumber } from '../ui';
+import { downloadFile } from '../../services/download';
+import { Badge, Button, Card, Spinner, Tabs, formatBytes, formatNumber } from '../ui';
 import QualityReport from '../FileUpload/QualityReport';
+import QueryEditor from '../QueryEditor/QueryEditor';
+import AgentPanel from '../Agent/AgentPanel';
+import SourcePicker from '../Agent/SourcePicker';
+import RowsBrowser from './RowsBrowser';
+import { useDocuments } from '../../hooks/useWorkspaceData';
 
 const TYPE_COLOR = {
   INTEGER: 'indigo',
@@ -11,6 +16,8 @@ const TYPE_COLOR = {
   TIMESTAMP: 'green',
   TEXT: 'gray',
 };
+
+export const TABLE_TABS = ['quality', 'columns', 'rows', 'sql', 'ask'];
 
 function Stat({ label, value }) {
   return (
@@ -21,12 +28,42 @@ function Stat({ label, value }) {
   );
 }
 
-// Everything about one uploaded table: size, columns, data quality and a preview.
-function TableDetail({ fileId, onDeleted }) {
+// The AI tab of a table: always this table, plus any documents the user adds.
+function AskThisTable({ file, files, onOpenSql }) {
+  const { documents } = useDocuments();
+  const [scope, setScope] = useState({ fileIds: [file.id], documentIds: [] });
+  return (
+    <div>
+      <SourcePicker
+        files={files.filter((f) => f.id === file.id)}
+        documents={documents}
+        value={scope}
+        onChange={setScope}
+        lockedFileId={file.id}
+      />
+      <AgentPanel
+        scope={scope}
+        onOpenSql={onOpenSql}
+        intro={`Answers come only from ${file.originalFilename}${
+          scope.documentIds.length ? ' and the documents you selected' : ''
+        }. Add documents above if they explain this data.`}
+        suggestions={[
+          'How many rows are there?',
+          `What are the columns in ${file.originalFilename}?`,
+          'Show the top 5 rows by the largest number column',
+        ]}
+      />
+    </div>
+  );
+}
+
+// Everything about one uploaded table: data quality, columns, all rows, SQL and AI questions.
+function TableDetail({ fileId, files, tab, onTab, initialSql, onDeleted }) {
   const [file, setFile] = useState(null);
-  const [tab, setTab] = useState('quality');
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const [sql, setSql] = useState(initialSql || '');
+  const [downloading, setDownloading] = useState(false);
+  const active = TABLE_TABS.includes(tab) ? tab : 'quality';
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +78,10 @@ function TableDetail({ fileId, onDeleted }) {
     };
   }, [fileId]);
 
+  useEffect(() => {
+    if (initialSql) setSql(initialSql);
+  }, [initialSql]);
+
   if (error) return <Card className="p-6 text-sm text-red-700">{error}</Card>;
   if (!file) {
     return (
@@ -50,6 +91,7 @@ function TableDetail({ fileId, onDeleted }) {
     );
   }
 
+  const ready = file.status === 'ready';
   const warnings = file.qualityReport?.warnings?.length ?? 0;
   const remove = async () => {
     if (
@@ -61,6 +103,18 @@ function TableDetail({ fileId, onDeleted }) {
     await api.delete(`/api/files/${file.id}`);
     onDeleted?.(file.id);
   };
+  const download = async () => {
+    setDownloading(true);
+    try {
+      await downloadFile(`/api/files/${file.id}/download`, file.originalFilename);
+    } finally {
+      setDownloading(false);
+    }
+  };
+  const openSql = (query) => {
+    setSql(query);
+    onTab('sql');
+  };
 
   return (
     <Card>
@@ -68,7 +122,7 @@ function TableDetail({ fileId, onDeleted }) {
         <div className="min-w-0">
           <h2 className="text-xl font-semibold text-slate-900 truncate">{file.originalFilename}</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Table{' '}
+            SQL table name{' '}
             <code className="font-mono text-indigo-700 bg-indigo-50 px-1 rounded">
               {file.tableName}
             </code>{' '}
@@ -76,11 +130,13 @@ function TableDetail({ fileId, onDeleted }) {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button icon="code" onClick={() => navigate(`/app/sql?table=${file.id}`)}>
-            Query this table
-          </Button>
-          <Button variant="secondary" icon="sparkles" onClick={() => navigate('/app/ask')}>
-            Ask AI
+          <Button
+            variant="secondary"
+            icon="download"
+            onClick={download}
+            disabled={!ready || downloading}
+          >
+            {downloading ? 'Preparing...' : 'Download CSV'}
           </Button>
           <Button variant="danger" icon="trash" onClick={remove} aria-label="Delete table">
             Delete
@@ -98,22 +154,31 @@ function TableDetail({ fileId, onDeleted }) {
       <Tabs
         tabs={[
           { id: 'quality', label: `Data quality${warnings ? ` (${warnings})` : ''}` },
-          { id: 'overview', label: 'Columns' },
-          { id: 'preview', label: 'Preview' },
+          { id: 'columns', label: 'Columns' },
+          { id: 'rows', label: 'All rows' },
+          { id: 'sql', label: 'SQL query' },
+          { id: 'ask', label: 'Ask AI' },
         ]}
-        active={tab}
-        onChange={setTab}
+        active={active}
+        onChange={onTab}
       />
 
       <div className="p-5">
-        {file.status && file.status !== 'ready' && (
+        {!ready && (
           <p className="text-sm text-amber-700 mb-3">
             This file is {file.status}
             {file.error ? `: ${file.error}` : ''}.
           </p>
         )}
 
-        {tab === 'overview' && (
+        {active === 'quality' &&
+          (file.qualityReport ? (
+            <QualityReport report={file.qualityReport} />
+          ) : (
+            <p className="text-sm text-slate-500">No quality report was recorded for this file.</p>
+          ))}
+
+        {active === 'columns' && (
           <div className="flex flex-wrap gap-2">
             {(file.columns || []).map((c) => (
               <span
@@ -127,22 +192,32 @@ function TableDetail({ fileId, onDeleted }) {
           </div>
         )}
 
-        {tab === 'quality' &&
-          (file.qualityReport ? (
-            <QualityReport report={file.qualityReport} />
-          ) : (
-            <p className="text-sm text-slate-500">No quality report was recorded for this file.</p>
-          ))}
+        {active === 'rows' && ready && <RowsBrowser fileId={file.id} />}
 
-        {tab === 'preview' &&
-          (file.preview?.length ? (
-            <>
-              <p className="text-xs text-slate-500 mb-2">First {file.preview.length} rows</p>
-              <DataTable columns={Object.keys(file.preview[0])} rows={file.preview} />
-            </>
-          ) : (
-            <p className="text-sm text-slate-500">No rows to preview.</p>
-          ))}
+        {active === 'sql' && ready && (
+          <div>
+            <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 mb-4 text-sm">
+              <span className="text-indigo-900">
+                Querying <strong>{file.originalFilename}</strong>. In SQL this table is called{' '}
+                <code className="font-mono bg-white px-1 rounded">{file.tableName}</code>.
+                {files.length > 1 && (
+                  <span className="block text-xs text-indigo-800/80 mt-1">
+                    To combine it with another file, JOIN by table name:{' '}
+                    {files
+                      .filter((f) => f.id !== file.id)
+                      .map((f) => f.table_name)
+                      .join(', ')}
+                  </span>
+                )}
+              </span>
+            </div>
+            <QueryEditor selectedFile={file} initialQuery={sql} />
+          </div>
+        )}
+
+        {active === 'ask' && ready && (
+          <AskThisTable file={file} files={files} onOpenSql={openSql} />
+        )}
       </div>
     </Card>
   );

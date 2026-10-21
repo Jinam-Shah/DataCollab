@@ -69,6 +69,46 @@ it('supports the single-shot baseline mode', async () => {
   expect(res.body.rows).toEqual([{ n: '3' }]);
 });
 
+describe('asking about selected tables and documents', () => {
+  let sales;
+  let costs;
+  beforeAll(async () => {
+    const files = (await user.get('/api/files')).body.files;
+    sales = files.find((f) => f.table_name === 'sales');
+    costs = (await user.upload('costs.csv', 'region,cost\nnorth,3\n')).body.file;
+  });
+
+  it('only shows the model the selected tables', async () => {
+    script = [
+      toolCall('get_schema', { tables: ['sales', 'costs'] }),
+      toolCall('run_readonly_query', { sql: 'SELECT count(*) AS n FROM sales' }),
+      text('3 rows.'),
+    ];
+    const res = await user
+      .post('/api/agent/ask')
+      .send({ question: 'How many sales rows?', fileIds: [sales.id], documentIds: [] });
+    expect(res.status).toBe(200);
+    const detail = await user.get(`/api/agent/runs/${res.body.runId}`);
+    const schemaStep = detail.body.steps.find((s) => s.step_type === 'get_schema');
+    const schemaText = JSON.stringify(schemaStep.tool_output);
+    expect(schemaText).toContain('sales');
+    expect(schemaText).not.toContain('costs');
+  });
+
+  it('rejects an empty selection and ids from other workspaces', async () => {
+    const empty = await user
+      .post('/api/agent/ask')
+      .send({ question: 'Anything?', fileIds: [], documentIds: [] });
+    expect(empty.status).toBe(400);
+    const foreign = await other
+      .post('/api/agent/ask')
+      .send({ question: 'Anything?', fileIds: [costs.id], documentIds: [] });
+    expect(foreign.status).toBe(400);
+    const bad = await user.post('/api/agent/ask').send({ question: 'x', fileIds: ['abc'] });
+    expect(bad.status).toBe(400);
+  });
+});
+
 it('returns 502 when the model fails', async () => {
   script = [];
   const res = await user.post('/api/agent/ask').send({ question: 'Anything?' });

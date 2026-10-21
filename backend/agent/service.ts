@@ -5,6 +5,7 @@ import { startRun } from './trace';
 import type { PromptVariant } from './prompts';
 import type { Workspace } from '../services/workspaceService';
 import type { SchemaOptions } from './schema';
+import type { AgentScope } from './tools';
 import { tracer, recordAgentRun, recordStepSpan, recordToolCall } from '../observability/metrics';
 
 export interface AskOptions {
@@ -14,6 +15,7 @@ export interface AskOptions {
   userId?: number | null;
   promptVariant?: PromptVariant;
   schemaOptions?: SchemaOptions;
+  scope?: AgentScope;
   maxRetries?: number;
   summarize?: boolean;
   source?: 'app' | 'eval' | 'mcp';
@@ -77,7 +79,13 @@ export async function ask(
     };
 
     const started = Date.now();
-    const common = { workspace: opts.workspace, model: modelInfo.model, schemaOptions, onStep };
+    const common = {
+      workspace: opts.workspace,
+      model: modelInfo.model,
+      schemaOptions,
+      scope: opts.scope,
+      onStep,
+    };
     const result =
       mode === 'agent'
         ? await runAgent(opts.question, {

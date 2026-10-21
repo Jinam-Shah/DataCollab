@@ -54,6 +54,42 @@ describe('inline upload', () => {
   });
 });
 
+describe('browsing and downloading a table', () => {
+  let file;
+  beforeAll(async () => {
+    const csv = 'Region Name,amount,"note, with comma"\nnorth,10,"say ""hi"""\nsouth,,x\n';
+    file = (await user.upload('Browse Me.csv', csv)).body.file;
+  });
+
+  it('pages through every row in upload order', async () => {
+    const p1 = await user.get(`/api/files/${file.id}/rows?page=1&pageSize=1`);
+    expect(p1.status).toBe(200);
+    expect(p1.body).toMatchObject({ page: 1, pageSize: 1, total: 2 });
+    expect(p1.body.columns).toEqual(['region_name', 'amount', 'note__with_comma']);
+    expect(p1.body.rows).toEqual([
+      { region_name: 'north', amount: '10', note__with_comma: 'say "hi"' },
+    ]);
+    const p2 = await user.get(`/api/files/${file.id}/rows?page=2&pageSize=1`);
+    expect(p2.body.rows[0]).toMatchObject({ region_name: 'south', amount: null });
+  });
+
+  it('downloads the table as CSV with the original headers', async () => {
+    const res = await user.get(`/api/files/${file.id}/download`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/csv/);
+    expect(res.headers['content-disposition']).toContain('Browse Me.csv');
+    expect(res.text).toBe(
+      'Region Name,amount,"note, with comma"\r\nnorth,10,"say ""hi"""\r\nsouth,,x\r\n'
+    );
+  });
+
+  it('keeps rows and downloads private to the workspace', async () => {
+    const outsider = await registerUser('upload-outsider');
+    expect((await outsider.get(`/api/files/${file.id}/rows`)).status).toBe(404);
+    expect((await outsider.get(`/api/files/${file.id}/download`)).status).toBe(404);
+  });
+});
+
 describe('background upload', () => {
   it('returns 202 at once and finishes in the background', async () => {
     const res = await user.upload('big.csv', bigCsv);

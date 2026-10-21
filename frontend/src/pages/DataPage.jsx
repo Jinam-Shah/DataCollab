@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Badge,
   Card,
@@ -22,7 +22,8 @@ function statusBadge(file) {
 // Tables in the workspace on the left; the selected table's details on the right.
 function DataPage() {
   const { files, loading, reload } = useFiles();
-  const { fileId } = useParams();
+  const { fileId, tab } = useParams();
+  const [search] = useSearchParams();
   const navigate = useNavigate();
   const selectedId = fileId ? Number(fileId) : null;
 
@@ -38,7 +39,7 @@ function DataPage() {
     <div>
       <PageHeader
         title="Data"
-        description="Upload CSV files. Each file becomes a table that you can query with SQL or ask about in plain English. Everyone in your workspace sees the same tables."
+        description="Upload CSV files. Pick a table to check its quality, browse or download every row, query it with SQL, or ask the AI about it. Everyone in your workspace sees the same tables."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-6 items-start">
@@ -66,7 +67,8 @@ function DataPage() {
                 {files.map((f) => (
                   <li key={f.id}>
                     <button
-                      onClick={() => navigate(`/app/data/${f.id}`)}
+                      // Keep the open tab when switching tables (e.g. stay on SQL query).
+                      onClick={() => navigate(`/app/data/${f.id}${tab ? `/${tab}` : ''}`)}
                       className={`w-full text-left px-4 py-3 flex items-start gap-3 transition ${
                         selectedId === f.id ? 'bg-indigo-50' : 'hover:bg-slate-50'
                       }`}
@@ -101,6 +103,10 @@ function DataPage() {
             <TableDetail
               key={selectedId}
               fileId={selectedId}
+              files={files}
+              tab={tab}
+              onTab={(t) => navigate(`/app/data/${selectedId}/${t}`)}
+              initialSql={search.get('sql') || ''}
               onDeleted={() => navigate('/app/data')}
             />
           ) : (
@@ -110,7 +116,7 @@ function DataPage() {
                 title={files.length ? 'Select a table' : 'Upload your first CSV'}
               >
                 {files.length
-                  ? 'Pick a table on the left to see its columns, data quality report and a preview.'
+                  ? 'Pick a table on the left. Its tabs let you browse all rows, write SQL and ask the AI about that table.'
                   : 'Drop a CSV file in the upload box. You will get a data quality report before your first query.'}
               </EmptyState>
             </Card>

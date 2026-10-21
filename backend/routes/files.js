@@ -45,6 +45,12 @@ router.get('/', fileController.getFiles);
 // Get file details
 router.get('/:id', fileController.getFileDetails);
 
+// Browse all rows, paginated
+router.get('/:id/rows', fileController.getRows);
+
+// Download the table as CSV
+router.get('/:id/download', fileController.downloadCsv);
+
 // Delete file
 router.delete('/:id', fileController.deleteFile);
 

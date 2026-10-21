@@ -105,19 +105,23 @@ interface ChunkRow {
   content: string;
 }
 
+// Restrict a search to these documents; null searches all of the workspace's documents.
+type DocFilter = number[] | null;
+
 async function vectorSearch(
   workspaceSlug: string,
   query: string,
-  limit: number
+  limit: number,
+  documentIds: DocFilter = null
 ): Promise<ChunkRow[]> {
   const [vec] = await embedTexts([query], 'query');
   const { rows } = await pool.query(
     `SELECT c.id, c.document_id, d.filename, c.chunk_index, c.page, c.section, c.content
        FROM document_chunks c JOIN documents d ON d.id = c.document_id
-      WHERE c.workspace_id = $1
+      WHERE c.workspace_id = $1 AND ($4::bigint[] IS NULL OR c.document_id = ANY($4))
       ORDER BY c.embedding <=> $2::vector
       LIMIT $3`,
-    [workspaceSlug, toVectorLiteral(vec), limit]
+    [workspaceSlug, toVectorLiteral(vec), limit, documentIds]
   );
   return rows;
 }
@@ -134,12 +138,14 @@ async function keywordSearch(
   workspaceSlug: string,
   query: string,
   limit: number,
-  ranking: KeywordRanking = 'rank'
+  ranking: KeywordRanking = 'rank',
+  documentIds: DocFilter = null
 ): Promise<ChunkRow[]> {
   const sql = (tsquery: string, order: string) => `
     SELECT c.id, c.document_id, d.filename, c.chunk_index, c.page, c.section, c.content
       FROM document_chunks c JOIN documents d ON d.id = c.document_id, ${tsquery} AS q
      WHERE c.workspace_id = $1 AND c.tsv @@ q
+       AND ($4::bigint[] IS NULL OR c.document_id = ANY($4))
      ORDER BY ${order} DESC, c.id
      LIMIT $3`;
   if (ranking === 'rank') {
@@ -148,18 +154,20 @@ async function keywordSearch(
       workspaceSlug,
       query,
       limit,
+      documentIds,
     ]);
     return rows;
   }
   const strict = await pool.query(
     sql("websearch_to_tsquery('english', $2)", 'ts_rank_cd(c.tsv, q)'),
-    [workspaceSlug, query, limit]
+    [workspaceSlug, query, limit, documentIds]
   );
   if (strict.rows.length >= limit) return strict.rows;
   const loose = await pool.query(sql(OR_QUERY, 'ts_rank_cd(c.tsv, q)'), [
     workspaceSlug,
     query,
     limit,
+    documentIds,
   ]);
   const seen = new Set(strict.rows.map((r: ChunkRow) => r.id));
   return [...strict.rows, ...loose.rows.filter((r: ChunkRow) => !seen.has(r.id))].slice(0, limit);
@@ -168,15 +176,22 @@ async function keywordSearch(
 export async function searchDocuments(
   workspaceSlug: string,
   query: string,
-  opts: { mode?: SearchMode; k?: number; keywordRanking?: KeywordRanking } = {}
+  opts: {
+    mode?: SearchMode;
+    k?: number;
+    keywordRanking?: KeywordRanking;
+    documentIds?: number[] | null;
+  } = {}
 ): Promise<SearchHit[]> {
   const mode = opts.mode ?? 'hybrid';
   const k = opts.k ?? 5;
-  const vector = mode === 'keyword' ? [] : await vectorSearch(workspaceSlug, query, CANDIDATES);
+  const docs = opts.documentIds ?? null;
+  const vector =
+    mode === 'keyword' ? [] : await vectorSearch(workspaceSlug, query, CANDIDATES, docs);
   const keyword =
     mode === 'vector'
       ? []
-      : await keywordSearch(workspaceSlug, query, CANDIDATES, opts.keywordRanking);
+      : await keywordSearch(workspaceSlug, query, CANDIDATES, opts.keywordRanking, docs);
 
   const hits = new Map<string, SearchHit>();
   const add = (rows: ChunkRow[], which: 'vectorRank' | 'keywordRank') => {
