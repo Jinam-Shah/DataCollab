@@ -50,6 +50,10 @@ const paths = {
   ),
   download: <path d="M12 4v12M7 11l5 5 5-5M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />,
   rows: <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />,
+  users: (
+    <path d="M16 19v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1M9 10a3 3 0 100-6 3 3 0 000 6zM22 19v-1a4 4 0 00-3-3.9M16 4.1a3 3 0 010 5.8" />
+  ),
+  refresh: <path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7" />,
   play: <path d="M7 4l13 8-13 8V4z" />,
   arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
 };

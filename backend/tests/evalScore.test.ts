@@ -89,6 +89,30 @@ describe('eval scoring', () => {
     ).toBe(true);
   });
 
+  it('matches unordered numbers that round to the same two decimals', () => {
+    // 4.665 and 4.670045 both round to 4.67; they must still be paired with their own values.
+    const ref = {
+      columns: ['t', 'avg'],
+      rows: [
+        { t: 'md', avg: 4.665 },
+        { t: 'mwr', avg: 4.670045 },
+        { t: 'mb', avg: 4.679 },
+      ],
+    };
+    const pred = {
+      columns: ['t', 'a'],
+      rows: [
+        { t: 'mb', a: 4.679 },
+        { t: 'mwr', a: 4.670045 },
+        { t: 'md', a: 4.665 },
+      ],
+    };
+    expect(resultsMatch(ref, pred)).toBe(true);
+    expect(
+      resultsMatch(ref, { ...pred, rows: [{ t: 'md', a: 4.69 }, ...pred.rows.slice(0, 2)] })
+    ).toBe(false);
+  });
+
   it('matches two empty results', () => {
     expect(resultsMatch(rs(['id'], []), rs(['event_id'], []))).toBe(true);
   });

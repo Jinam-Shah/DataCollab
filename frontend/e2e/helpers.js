@@ -17,12 +17,23 @@ export async function signUp(page, user) {
   await page.getByLabel('Email').fill(user.email);
   await page.getByLabel('Password').fill(user.password);
   await page.getByLabel(/Workspace ID/).fill(user.workspace);
+  if (user.inviteCode) await page.getByLabel(/Invite code/).fill(user.inviteCode);
   await page.getByRole('button', { name: 'Sign Up' }).click();
-  await expect(page).toHaveURL(/\/app\/data/);
+  // The creator of a new workspace lands on the Team page, a member who joined on Data.
+  await expect(page).toHaveURL(/\/app\/(data|team)/);
   await expect(page.getByText(`Workspace: ${user.workspace}`)).toBeVisible();
+  await page.getByRole('link', { name: 'Data', exact: true }).click();
 }
 
 export async function uploadCsv(page, file) {
   await page.locator('#file-input').setInputFiles(file);
   await page.getByRole('button', { name: 'Upload', exact: true }).click();
+}
+
+// The invite code shown on the Team page, for signing teammates up into the same workspace.
+export async function readInviteCode(page) {
+  await page.getByRole('link', { name: 'Team' }).click();
+  const code = (await page.getByTestId('invite-code').textContent()).trim();
+  await page.getByRole('link', { name: 'Data', exact: true }).click();
+  return code;
 }

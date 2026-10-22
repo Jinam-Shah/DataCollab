@@ -1,6 +1,26 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { ensureWorkspace } = require('../services/workspaceService');
+const nodeCrypto = require('crypto');
+const {
+  ensureWorkspace,
+  getWorkspace,
+  getInviteCode,
+  inviteCodeMatches,
+  countMembers,
+} = require('../services/workspaceService');
+
+const WORKSPACE_RE = /^[A-Za-z0-9_.-]{1,50}$/;
+
+// A free workspace name for someone who left the field blank: their username, plus a short
+// random suffix if a workspace with that name already has members.
+async function personalWorkspace(username) {
+  const base = username.replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 40) || 'workspace';
+  let slug = base;
+  for (let i = 0; i < 5 && (await countMembers(slug)) > 0; i++) {
+    slug = `${base}-${nodeCrypto.randomBytes(3).toString('hex')}`;
+  }
+  return slug;
+}
 
 // Generate JWT token
 const generateToken = (userId, username, workspaceId) => {
@@ -10,7 +30,7 @@ const generateToken = (userId, username, workspaceId) => {
 // Register new user
 exports.register = async (req, res) => {
   try {
-    const { username, email, password, workspaceId } = req.body;
+    const { username, email, password, workspaceId, inviteCode } = req.body;
 
     // Validation
     if (!username || !email || !password) {
@@ -43,15 +63,28 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
-    const finalWorkspaceId = (workspaceId || 'default').trim();
-    if (!/^[A-Za-z0-9_.-]{1,50}$/.test(finalWorkspaceId)) {
+    // Blank workspace: create a private one. Named workspace: create it if it is new, otherwise
+    // joining it needs the invite code that its members can see on the Team page.
+    const requested = (workspaceId || '').trim();
+    if (requested && !WORKSPACE_RE.test(requested)) {
       return res.status(400).json({
         error: 'Workspace ID must be 1-50 letters, digits, dots, dashes or underscores',
       });
     }
+    const finalWorkspaceId = requested || (await personalWorkspace(username));
+    const existing = await getWorkspace(finalWorkspaceId);
+    const joining = existing && (await countMembers(finalWorkspaceId)) > 0;
+    if (joining && !inviteCodeMatches(await getInviteCode(existing.id), inviteCode)) {
+      return res.status(403).json({
+        error: inviteCode
+          ? 'That invite code is not valid for this workspace'
+          : `Workspace "${finalWorkspaceId}" already exists. Ask a member for its invite code, or leave the workspace blank to create your own.`,
+        code: 'INVITE_REQUIRED',
+      });
+    }
 
     // Create the workspace (schema + read-only role) on first use, then the user
-    await ensureWorkspace(finalWorkspaceId);
+    const workspace = await ensureWorkspace(finalWorkspaceId);
     const user = await User.create(username, email, password, finalWorkspaceId);
 
     // Generate token with workspace
@@ -70,6 +103,8 @@ exports.register = async (req, res) => {
         email: user.email,
         workspaceId: user.workspace_id,
       },
+      // Shown to whoever creates a workspace, so they can invite teammates straight away.
+      ...(!joining && { inviteCode: await getInviteCode(workspace.id) }),
     });
   } catch (error) {
     console.error('Register error:', error);

@@ -34,6 +34,11 @@ Every number here was measured, not estimated. Each row lists the date, the envi
 | 2026-10-21 | Backend automated tests (after the per-table tabs, row browsing, CSV download and scoped AI questions) | 144 tests in 13 suites, all passing; coverage 76.7% lines, 69.8% branches | Same container, PostgreSQL 16 + Redis 7 local | `cd backend && npm run test:coverage` |
 | 2026-10-21 | Frontend component tests | 22 tests in 9 files, all passing; coverage 48.0% lines, 49.2% branches | Same container, jsdom | `cd frontend && npm run test:coverage` |
 | 2026-10-21 | End-to-end tests | 6 Playwright tests (main flow incl. all-rows browsing, CSV download, per-table SQL and Ask AI; write blocked; document upload and viewer; MCP token snippet; Ask AI source picker; two-session real-time sync), all passing on 2 consecutive runs | Same container, Playwright 1.56.1, Chromium | `cd frontend && npx playwright test` |
+| 2026-10-21 | Backend automated tests (after invite-only workspaces and the scorer fix) | 150 tests in 14 suites, all passing; coverage 77.0% lines, 70.4% branches | Same container, PostgreSQL 16 + Redis 7 local | `cd backend && npm run test:coverage` |
+| 2026-10-21 | Frontend component tests (after the Team page) | 23 tests in 10 files, all passing; coverage 48.8% lines, 49.2% branches | Same container, jsdom | `cd frontend && npm run test:coverage` |
+| 2026-10-21 | Eval, **held-out SQL set** (20 new questions written after development; 6 easy, 7 medium, 7 hard): Gemini single-shot | 19/20 (95.0%); hard 6/7; median 0.6 s. Miss: x18 (summed every cause including the 'All causes' total) | `gemini-3.5-flash-lite`, free tier, same container and demo dataset | `LLM_PROVIDER=gemini GEMINI_MODEL=gemini-3.5-flash-lite EVAL_DELAY_MS=8000 npm run eval -- --set eval/sql_holdout.jsonl --mode single_shot --profiles off --label holdout-gemini-single_shot-profiles_off` |
+| 2026-10-21 | Eval, held-out SQL set: Gemini agent, prompt A, no column profiles (the default configuration) | 19/20 (95.0%); hard 6/7; median 1.1 s; mean 1.00 attempts. Miss: x20 (same 'All causes' double count) | same | `... --mode agent --variant A --profiles off --label holdout-gemini-agent-A-profiles_off`, then `npx tsx eval/rescore.ts <file> --write` (see next row) |
+| 2026-10-21 | Scorer fix and re-score of every saved run | Unordered comparison sorted numbers by a 2-decimal key, so values that round alike (4.665, 4.670045) could be paired wrongly. Fixed; re-running all 10 saved SQL result files with the fixed scorer changed one verdict (held-out agent x12, wrong → correct, raising that run from 18/20 to 19/20) and no earlier published number | Same container | `npx tsx eval/rescore.ts $(ls eval/results/*.json \| grep -v retrieval)` |
 
 ## Notes on the evaluation numbers
 
@@ -42,7 +47,12 @@ Every number here was measured, not estimated. Each row lists the date, the envi
   with its model. `gemini-2.5-flash` is no longer offered to new API keys, and `gemini-3.8-flash`
   allows only 5 requests/min on the free tier, so `gemini-3.5-flash-lite` was used.
 - **Development set.** The 40 questions were written while building the agent. The scores show
-  differences on this set, not expected accuracy on unseen questions. No held-out SQL set has been run yet.
+  differences on this set, not expected accuracy on unseen questions.
+- **Held-out set.** 20 questions in `eval/sql_holdout.jsonl` were written and their reference answers
+  checked before any model saw them. Gemini scored 95% with both single-shot and the agent (19/20 each;
+  1 vs 1 discordant, McNemar p = 1.0), close to its 92.5–95% on the development set, so the development
+  numbers do not look overfitted. Both misses are the same trap: adding the 'All causes' total to the
+  individual causes. That caveat is in the demo data dictionary, which these runs did not use.
 - **Significance.** With 40 paired questions, the 1–3 question differences between configurations
   are not statistically significant for either model (McNemar p ≥ 0.5). The honest summary: the
   model matters far more than the configuration (local 7B 77.5–82.5%, Gemini 90–95%); the agent

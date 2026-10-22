@@ -40,11 +40,23 @@ export function cellsEqual(a: Cell, b: Cell): boolean {
   return a === b;
 }
 
-// Sort key: numbers rounded so values within tolerance sort next to each other.
-function key(c: Cell): string {
-  if (c === null) return '\u0000';
-  if (typeof c === 'number') return `n${(Math.round(c * 100) / 100).toFixed(2).padStart(24, '0')}`;
-  return `s${String(c)}`;
+// Total order for sorting before an unordered comparison: nulls, then numbers by exact value,
+// then strings. (Sorting numbers by a rounded key let values that round alike, such as 4.665 and
+// 4.670045, land in different orders in the two results and then be compared with each other.)
+function compareCells(a: Cell, b: Cell): number {
+  const rank = (c: Cell) => (c === null ? 0 : typeof c === 'number' ? 1 : 2);
+  if (rank(a) !== rank(b)) return rank(a) - rank(b);
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  if (a === null || b === null) return 0;
+  return String(a).localeCompare(String(b));
+}
+
+function compareTuples(a: Cell[], b: Cell[]): number {
+  for (let i = 0; i < a.length; i++) {
+    const c = compareCells(a[i], b[i]);
+    if (c !== 0) return c;
+  }
+  return 0;
 }
 
 function columnVector(rows: Record<string, unknown>[], col: string): Cell[] {
@@ -53,16 +65,15 @@ function columnVector(rows: Record<string, unknown>[], col: string): Cell[] {
 
 function vectorsMatch(a: Cell[], b: Cell[], ordered: boolean): boolean {
   if (a.length !== b.length) return false;
-  const x = ordered ? a : [...a].sort((p, q) => key(p).localeCompare(key(q)));
-  const y = ordered ? b : [...b].sort((p, q) => key(p).localeCompare(key(q)));
+  const x = ordered ? a : [...a].sort(compareCells);
+  const y = ordered ? b : [...b].sort(compareCells);
   return x.every((v, i) => cellsEqual(v, y[i]));
 }
 
 function tuplesMatch(ref: Cell[][], pred: Cell[][], ordered: boolean): boolean {
   if (ref.length !== pred.length) return false;
-  const sortKey = (t: Cell[]) => t.map(key).join('|');
-  const x = ordered ? ref : [...ref].sort((p, q) => sortKey(p).localeCompare(sortKey(q)));
-  const y = ordered ? pred : [...pred].sort((p, q) => sortKey(p).localeCompare(sortKey(q)));
+  const x = ordered ? ref : [...ref].sort(compareTuples);
+  const y = ordered ? pred : [...pred].sort(compareTuples);
   return x.every((row, i) => row.every((v, j) => cellsEqual(v, y[i][j])));
 }
 

@@ -158,3 +158,45 @@ export async function bumpDataVersion(workspaceId: number, db: Queryable = pool)
   );
   return result.rows[0]?.data_version ?? 0;
 }
+
+// ---- Invite codes -------------------------------------------------------------------------
+// 12 URL-safe characters from 9 random bytes (72 bits), so guessing one is not practical.
+export function newInviteCode(): string {
+  return require('crypto').randomBytes(9).toString('base64url');
+}
+
+/** The workspace's invite code, created the first time it is asked for. */
+export async function getInviteCode(workspaceId: number): Promise<string> {
+  const { rows } = await pool.query<{ invite_code: string }>(
+    `UPDATE workspaces SET invite_code = COALESCE(invite_code, $2) WHERE id = $1
+     RETURNING invite_code`,
+    [workspaceId, newInviteCode()]
+  );
+  return rows[0].invite_code;
+}
+
+/** Replace the invite code. Existing members keep access; the old code stops working. */
+export async function rotateInviteCode(workspaceId: number): Promise<string> {
+  const { rows } = await pool.query<{ invite_code: string }>(
+    'UPDATE workspaces SET invite_code = $2 WHERE id = $1 RETURNING invite_code',
+    [workspaceId, newInviteCode()]
+  );
+  return rows[0].invite_code;
+}
+
+/** Constant-time comparison, so response timing does not leak how much of a code matched. */
+export function inviteCodeMatches(expected: string, given: unknown): boolean {
+  if (typeof given !== 'string') return false;
+  const crypto = require('crypto');
+  const a = crypto.createHash('sha256').update(expected).digest();
+  const b = crypto.createHash('sha256').update(given.trim()).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+export async function countMembers(slug: string): Promise<number> {
+  const { rows } = await pool.query<{ n: number }>(
+    'SELECT count(*)::int AS n FROM users WHERE workspace_id = $1',
+    [slug]
+  );
+  return rows[0].n;
+}

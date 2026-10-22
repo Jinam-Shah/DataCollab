@@ -7,6 +7,7 @@ import AskPage from './pages/AskPage';
 import DocumentsPage from './pages/DocumentsPage';
 import RunHistory from './pages/RunHistory';
 import IntegrationsPage from './pages/IntegrationsPage';
+import TeamPage from './pages/TeamPage';
 import AppShell from './layout/AppShell';
 import { ToastProvider } from './components/Toasts';
 import { isAuthenticated } from './utils/auth';
@@ -47,6 +48,7 @@ function App() {
             <Route path="ask" element={<AskPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="documents/:docId/:tab?" element={<DocumentsPage />} />
+            <Route path="team" element={<TeamPage />} />
             <Route path="history" element={<RunHistory />} />
             <Route path="integrations" element={<IntegrationsPage />} />
           </Route>

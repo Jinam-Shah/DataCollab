@@ -25,6 +25,7 @@ const NAV = [
     icon: 'file',
     hint: 'PDFs and notes the AI can read and cite',
   },
+  { to: '/app/team', label: 'Team', icon: 'users', hint: 'Invite teammates to this workspace' },
   { to: '/app/history', label: 'Run history', icon: 'history', hint: 'Every AI run, step by step' },
   {
     to: '/app/integrations',

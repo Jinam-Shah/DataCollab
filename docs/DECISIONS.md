@@ -119,3 +119,11 @@ Each entry: the problem, the options, the choice, and why.
 - **Choice:** each table has tabs for Data quality, Columns, All rows, SQL query and Ask AI; each document has Passages and Ask AI. The Ask AI page remains for questions across files, with a picker that shows exactly which tables and documents are used. `POST /api/agent/ask` takes `fileIds` and `documentIds`; the server keeps only ids from the caller's workspace, the agent's schema tool only describes the selected tables, and document search filters to the selected documents.
 - **Limit:** the scope controls what the model is shown, not what SQL may run; a query that names an unselected table by hand still runs under the same read-only rules as the SQL editor.
 - **Also added:** `GET /api/files/:id/rows` (paged browsing of every row) and `GET /api/files/:id/download` (the table rebuilt as CSV with the original headers, streamed in batches, because uploaded files are not kept on the free host's disk).
+
+## D19. Invite codes for workspaces
+
+- **Problem:** anyone who typed a workspace name at sign-up joined it, with full access to its tables, documents and chat.
+- **Options:** email invitations (needs a mail service), owner approval of join requests (needs roles and a pending state), a shared invite code.
+- **Choice:** a per-workspace invite code, required only when the workspace already has members. The first person to use a name creates it and sees the code; a blank name creates a private workspace. Any member can replace the code. Codes are generated lazily, so existing workspaces needed only a nullable column (migration 007).
+- **Why:** it closes the open-join hole with no email service and no change for existing users, in one table column and two endpoints.
+- **Not done:** removing members, roles, and expiring codes.
