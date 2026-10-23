@@ -90,6 +90,7 @@ All numbers are measured; commands and environments are in [METRICS.md](METRICS.
 | Document retrieval hit rate @5, held-out questions | hybrid **80%** vs vector-only 60% (MRR 0.602 vs 0.567) |
 | CSV ingest | 100,000 rows in 2.5 s end to end; the API answers the upload in about 50 ms (background job) |
 | Query cache | p95 126.6 ms → **15.5 ms**, 108 → 997 req/s (aggregate over 100K rows, 10 connections) |
+| Kubernetes autoscaling (local kind cluster, 40 concurrent workers for 180 s) | API **2 → 6 replicas** within a minute at 218–230% of the CPU target; 76,006 requests, 0.03% failed |
 | Tests | 150 backend (Jest + Supertest, real PostgreSQL and Redis; 77.0% line coverage), 23 frontend (Vitest), 6 end-to-end (Playwright, including a two-browser real-time sync test with an invite code) |
 
 The 40-question set was used while building the agent, so it shows differences between
@@ -165,7 +166,7 @@ validation and `terraform validate` on every push and pull request.
 
 - **Free hosting:** `infra/terraform` defines Neon, Upstash, Render and Vercel. [infra/terraform/README.md](infra/terraform/README.md) lists the steps, including the manual ones.
 - **Continuous deployment:** `.github/workflows/deploy.yml` deploys `main` after CI passes. It needs the repository secrets `RENDER_DEPLOY_HOOK_URL` (API) and, optionally, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (frontend; otherwise Vercel's own Git integration deploys it). Without a secret, that job is skipped.
-- **Kubernetes:** `make k8s-up` runs everything on a local kind cluster, with an autoscaler on the API. See [k8s/README.md](k8s/README.md).
+- **Kubernetes:** `make k8s-up` (or the PowerShell steps in [k8s/README.md](k8s/README.md) on Windows) runs everything on a local kind cluster, with an autoscaler on the API. Run end to end on a laptop: under load the API scaled from 2 to 6 replicas within a minute.
 
 ## Documentation
 
@@ -183,7 +184,7 @@ validation and `terraform validate` on every push and pull request.
 - Any member can create a new invite code, but members cannot be removed yet, and there are no owner or admin roles.
 - JWTs live in `localStorage` for 7 days; refresh tokens in httpOnly cookies are not implemented.
 - The held-out SQL set is small (20 questions), so it can only show that the development numbers are not overfitted, not separate configurations.
-- The kind cluster is defined and validated but has not been run end to end yet. The live deployment was set up by hand in the provider dashboards; `infra/terraform` has not been applied.
+- The live deployment was set up by hand in the provider dashboards; `infra/terraform` is validated in CI but has not been applied. The Kubernetes setup runs on a local kind cluster only (no hosted cluster).
 - On free hosting, uploads are ingested in the API process, and an upload in progress is lost if the instance spins down.
 - Choosing tables for the AI limits what the model is shown, not what SQL may run: a query that names another table in the workspace by hand still runs, read-only.
 - The frontend bundle is about 915 KB gzipped because Monaco is bundled.
