@@ -17,6 +17,50 @@ take about a minute.
 
 ---
 
+## Using DataCollab
+
+1. **Sign up.** Leave the workspace blank for a private workspace, type a new name to start one for
+   your team, or enter a teammate's workspace ID and invite code to join theirs. Everyone in a
+   workspace shares its tables, documents, AI history and chat.
+2. **Data.** Drop a CSV. It becomes a SQL table, and you get a data quality report straight away
+   (empty columns, mixed types, duplicates, ranges). Click a table to open its tabs:
+   - **Data quality** and **Columns**: what the upload contained and the type of each column.
+   - **All rows**: every row, 50 to 500 per page. **Download CSV** gives the table back as a file
+     with its original headers.
+   - **SQL query**: a code editor for read-only SQL on that table (joins with other tables work by
+     table name), with paged results and bar, line or pie charts.
+   - **Ask AI**: plain-English questions about that table only. Tick documents to add them as context.
+3. **Documents.** Upload PDF, Markdown or text files such as data dictionaries or reports. They
+   are not tables; the AI searches them and cites the passages it used, and each document has a
+   **Passages** view and its own **Ask AI** tab.
+4. **Ask AI.** Questions across several files. A picker shows every table and document; untick the
+   ones the AI should ignore. Each answer shows the steps the agent took, the SQL it ran, the
+   result table, sources, and **Open in editor** to keep working on the SQL yourself.
+5. **Team.** The workspace ID, its invite code (copy it, or replace it if it was shared too
+   widely) and the member list.
+6. **Team chat.** A drawer on every page. Messages, uploads and new documents appear live for
+   everyone in the workspace, with a notification when a teammate adds something.
+7. **Run history.** Every AI question asked in the workspace, from the app or from an MCP client,
+   with each step, prompt, tool call, error, time and token count.
+8. **Integrations.** Create an access token so Claude Desktop or Claude Code can list tables,
+   describe them, run read-only queries and search documents through MCP. The page generates the
+   setup snippet with the token filled in.
+
+## How it is hosted
+
+| Service | What it does here |
+|---|---|
+| **Vercel** | Serves the React frontend (the pages your browser loads) |
+| **Render** | Runs the Node.js API in a Docker container: sign-in, uploads, SQL, the AI agent, chat |
+| **Neon** | PostgreSQL with pgvector: users, workspaces, uploaded tables, chat, document passages and their embeddings |
+| **Gemini API** | The language model the agent calls to plan, write SQL and phrase answers |
+| **Hugging Face** | Source of the `all-MiniLM-L6-v2` embedding model, downloaded once when the Docker image is built and then run inside the API |
+| **Upstash Redis** (optional) | Query cache, rate limits, background jobs and Socket.io fan-out when `REDIS_URL` is set |
+| **GitHub Actions** | Runs lint, tests, the Docker build and manifest checks on every push, then deploys `main` |
+
+All of these are free tiers. Locally, Docker Compose runs the same pieces on one machine, and
+the `k8s/` manifests run them on a Kubernetes (kind) cluster.
+
 ## Architecture
 
 ```mermaid
@@ -179,16 +223,6 @@ validation and `terraform validate` on every push and pull request.
 | [docs/MCP.md](docs/MCP.md) | Connecting MCP clients |
 | [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) | Traces, metrics and the dashboard |
 
-## Known limitations
-
-- Any member can create a new invite code, but members cannot be removed yet, and there are no owner or admin roles.
-- JWTs live in `localStorage` for 7 days; refresh tokens in httpOnly cookies are not implemented.
-- The held-out SQL set is small (20 questions), so it can only show that the development numbers are not overfitted, not separate configurations.
-- The live deployment was set up by hand in the provider dashboards; `infra/terraform` is validated in CI but has not been applied. The Kubernetes setup runs on a local kind cluster only (no hosted cluster).
-- On free hosting, uploads are ingested in the API process, and an upload in progress is lost if the instance spins down.
-- Choosing tables for the AI limits what the model is shown, not what SQL may run: a query that names another table in the workspace by hand still runs, read-only.
-- The frontend bundle is about 915 KB gzipped because Monaco is bundled.
-
 ## Screenshots
 
 Taken from a local run with the demo dataset and Gemini (`gemini-3.5-flash-lite`).
@@ -206,4 +240,4 @@ Taken from a local run with the demo dataset and Gemini (`gemini-3.5-flash-lite`
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).
