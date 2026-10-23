@@ -6,7 +6,8 @@ data:
   NODE_ENV: production
   PORT: '5000'
   REDIS_URL: redis://redis:6379
-  FRONTEND_URL: http://datacollab.localhost
+  # The kind port mapping serves the app on :8080, so allow both forms of the local address.
+  FRONTEND_URL: http://datacollab.localhost,http://datacollab.localhost:8080
   UPLOAD_DIR: /app/uploads
   QUERY_TIMEOUT_MS: '5000'
   QUERY_CACHE_TTL_SECONDS: '300'
